@@ -44,8 +44,6 @@ const filteredCubeOptions_MAP: Record<PotentialType, { value: CubeType; label: s
   ],
 };
 
-// filteredCubeOptions will be defined inside the component using useMemo
-
 const PART_OPTIONS: { value: string; label: string }[] = [
   { value: "", label: "-- 選択してください --" },
   { value: "weapon", label: "武器" },
@@ -102,6 +100,7 @@ export function ManualEntryForm({
       setCubeType(defaultCube);
     }
   }, [potentialType, filteredCubeOptions]);
+
   // grade transition state (combined start and end grade)
   // Only allow adjacent grade transitions (e.g., rare→epic, epic→unique, unique→legendary)
   const GRADE_TRANSITION_OPTIONS = GRADE_ORDER.slice(0, -1).map((from, i) => ({
@@ -126,7 +125,6 @@ export function ManualEntryForm({
   const [part, setPart] = useState<string>(
     initialData?.part ?? "",
   );
-  // 使用日時（datetime-local） デフォルト空
   // 使用日時（datetime-local） デフォルトは現在日時
   const [timestamp, setTimestamp] = useState<string>(
     initialData?.timestamp
@@ -231,183 +229,182 @@ export function ManualEntryForm({
   };
 
   return (
-    <form className="container" data-testid="manual-entry-form" onSubmit={handleSubmit}>
-      <div>
-        <label htmlFor="server_name">
-          サーバー名（任意）
-          <select
-            id="server_name"
-            value={serverName ?? ""}
-            onChange={(e) => {
-              markInteracted();
-              setServerName(e.target.value as ServerName | null);
-            }}
-          >
-            <option value="">-- 選択してください --</option>
-            {SERVER_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        {errors.server_name && (
-          <span className="error">{errors.server_name}</span>
-        )}
+    <form className="form-card" data-testid="manual-entry-form" onSubmit={handleSubmit}>
+      <div className="form-grid">
+        <div className="field">
+          <label htmlFor="server_name">
+            サーバー名（任意）
+            <select
+              id="server_name"
+              value={serverName ?? ""}
+              onChange={(e) => {
+                markInteracted();
+                setServerName(e.target.value as ServerName | null);
+              }}
+            >
+              <option value="">-- 選択してください --</option>
+              {SERVER_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          {errors.server_name && (
+            <span className="error">{errors.server_name}</span>
+          )}
+        </div>
+
+        <div className="field">
+          <label htmlFor="character_name">
+            キャラクター名（任意）
+            <input
+              id="character_name"
+              type="text"
+              value={characterName}
+              onChange={(e) => {
+                markInteracted();
+                const sanitized = sanitizeInput(e.target.value);
+                setCharacterName(sanitized.slice(0, MAX_CHARACTER_NAME_LENGTH));
+              }}
+              maxLength={MAX_CHARACTER_NAME_LENGTH}
+            />
+          </label>
+          {errors.character_name && (
+            <span className="error">{errors.character_name}</span>
+          )}
+        </div>
+
+        <div className="field">
+          <label htmlFor="potential_type">
+            潜在能力種別
+            <select
+              id="potential_type"
+              value={potentialType}
+              onChange={(e) => {
+                markInteracted();
+                setPotentialType(e.target.value as PotentialType);
+              }}
+            >
+              {POTENTIAL_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          {errors.potential_type && (
+            <span className="error">{errors.potential_type}</span>
+          )}
+        </div>
+
+        <div className="field">
+          <label htmlFor="cube_type">
+            キューブ種類
+            <select
+              id="cube_type"
+              value={cubeType}
+              onChange={(e) => {
+                markInteracted();
+                setCubeType(e.target.value as CubeType);
+              }}
+            >
+              {filteredCubeOptions.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          {errors.cube_type && (
+            <span className="error">{errors.cube_type}</span>
+          )}
+        </div>
+
+        <div className="field">
+          <label htmlFor="grade_transition">
+            等級遷移
+            <select
+              id="grade_transition"
+              value={gradeTransition}
+              onChange={(e) => {
+                markInteracted();
+                setGradeTransition(e.target.value);
+              }}
+            >
+              {GRADE_TRANSITION_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          {errors.grade_transition && (
+            <span className="error">{errors.grade_transition}</span>
+          )}
+        </div>
+
+        <div className="field">
+          <label htmlFor="quantity">
+            使用個数
+            <input
+              id="quantity"
+              type="number"
+              value={quantity}
+              onChange={(e) => {
+                markInteracted();
+                setQuantity(e.target.value);
+              }}
+            />
+          </label>
+          {errors.quantity && (
+            <span className="error">{errors.quantity}</span>
+          )}
+        </div>
+
+        {/* 部位選択 */}
+        <div className="field full">
+          <label htmlFor="part">
+            部位（任意）
+            <select
+              id="part"
+              value={part}
+              onChange={(e) => {
+                markInteracted();
+                setPart(e.target.value);
+              }}
+            >
+              {PART_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        {/* 使用日時入力 */}
+        <div className="field full">
+          <label htmlFor="timestamp">
+            使用日時（任意）
+            <input
+              id="timestamp"
+              type="datetime-local"
+              value={timestamp}
+              onChange={(e) => {
+                markInteracted();
+                setTimestamp(e.target.value);
+                setTimestampChanged(true);
+              }}
+            />
+          </label>
+          {errors.timestamp && (
+            <span className="error">{errors.timestamp}</span>
+          )}
+        </div>
       </div>
 
-      {/* キャラクター名（任意） */}
-      <div>
-        <label htmlFor="character_name">
-          キャラクター名（任意）
-          <input
-            id="character_name"
-            type="text"
-            value={characterName}
-            onChange={(e) => {
-              markInteracted();
-              const sanitized = sanitizeInput(e.target.value);
-              setCharacterName(sanitized.slice(0, MAX_CHARACTER_NAME_LENGTH));
-            }}
-            maxLength={MAX_CHARACTER_NAME_LENGTH}
-          />
-        </label>
-        {errors.character_name && (
-          <span className="error">{errors.character_name}</span>
-        )}
-      </div>
-
-      <div>
-        <label htmlFor="potential_type">
-          潜在能力種別
-          <select
-            id="potential_type"
-            value={potentialType}
-            onChange={(e) => {
-              markInteracted();
-              setPotentialType(e.target.value as PotentialType);
-            }}
-          >
-            {POTENTIAL_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        {errors.potential_type && (
-          <span className="error">{errors.potential_type}</span>
-        )}
-      </div>
-
-      <div>
-        <label htmlFor="cube_type">
-          キューブ種類
-          <select
-            id="cube_type"
-            value={cubeType}
-            onChange={(e) => {
-              markInteracted();
-              setCubeType(e.target.value as CubeType);
-            }}
-          >
-            {filteredCubeOptions.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        {errors.cube_type && (
-          <span className="error">{errors.cube_type}</span>
-        )}
-      </div>
-
-      <div>
-        <label htmlFor="grade_transition">
-          等級遷移
-          <select
-            id="grade_transition"
-            value={gradeTransition}
-            onChange={(e) => {
-              markInteracted();
-              setGradeTransition(e.target.value);
-            }}
-          >
-            {GRADE_TRANSITION_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        {errors.grade_transition && (
-          <span className="error">{errors.grade_transition}</span>
-        )}
-      </div>
-
-      <div>
-        <label htmlFor="quantity">
-          使用個数
-          <input
-            id="quantity"
-            type="number"
-            value={quantity}
-            onChange={(e) => {
-              markInteracted();
-              setQuantity(e.target.value);
-            }}
-          />
-        </label>
-        {errors.quantity && (
-          <span className="error">{errors.quantity}</span>
-        )}
-      </div>
-
-
-      {/* 部位選択 */}
-      <div>
-        <label htmlFor="part">
-          部位（任意）
-          <select
-            id="part"
-            value={part}
-            onChange={(e) => {
-              markInteracted();
-              setPart(e.target.value);
-            }}
-          >
-            {PART_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
-
-      {/* 使用日時入力 */}
-      <div>
-        <label htmlFor="timestamp">
-          使用日時（任意）
-          <input
-            id="timestamp"
-            type="datetime-local"
-            value={timestamp}
-            onChange={(e) => {
-              markInteracted();
-              setTimestamp(e.target.value);
-              setTimestampChanged(true);
-            }}
-          />
-        </label>
-        {errors.timestamp && (
-          <span className="error">{errors.timestamp}</span>
-        )}
-      </div>
-
-
-      <button className="button" type="submit">{editId ? "更新" : "登録"}</button>
+      <button className="btn-primary" type="submit">{editId ? "更新" : "登録する"}</button>
     </form>
   );
 }

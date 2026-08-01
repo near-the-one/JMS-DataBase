@@ -63,10 +63,16 @@ function validateRecord(
 
   // Validate cube_type against potential_type
   if (!isUpdate || record.cube_type !== undefined || record.potential_type !== undefined) {
-    const potentialType = record.potential_type ?? "potential"; // fallback for partial update
-    const allowedCubes = ALLOWED_CUBE_TYPES[potentialType];
-    if (!allowedCubes || !allowedCubes.has(record.cube_type!)) {
-      throw new Error(`Invalid combination: ${potentialType} - ${record.cube_type}`);
+    const potentialType = record.potential_type;
+    if (!potentialType) {
+      // For partial updates without potential_type, we can't validate cube_type without knowing the current value
+      // This would require fetching the existing record first. Skip validation in this case.
+      // The database CHECK constraint will enforce integrity on insert/update.
+    } else {
+      const allowedCubes = ALLOWED_CUBE_TYPES[potentialType];
+      if (!allowedCubes || !allowedCubes.has(record.cube_type!)) {
+        throw new Error(`Invalid combination: ${potentialType} - ${record.cube_type}`);
+      }
     }
   }
 
@@ -327,10 +333,12 @@ export class SupabaseRecordRepository implements IRecordRepository {
     }>();
 
     for (const r of rows) {
-      // Skip records with invalid potential/cube combination
+      // Skip records with invalid potential/cube combination (data cleanup needed in DB)
       const allowedCubes = ALLOWED_CUBE_TYPES[r.potential_type];
       if (!allowedCubes || !allowedCubes.has(r.cube_type)) {
-        console.warn(`Invalid combination: ${r.potential_type} - ${r.cube_type}`);
+        // This indicates data inconsistency - the DB constraints should prevent this
+        // Log for debugging but skip processing to avoid errors
+        console.warn(`Invalid combination in DB: ${r.potential_type} - ${r.cube_type} (should be handled by DB constraints)`);
         continue;
       }
       const miracle = isInMiracle(r.timestamp);

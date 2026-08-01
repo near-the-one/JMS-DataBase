@@ -5,36 +5,65 @@ import { render, screen, fireEvent, waitFor, within } from "@testing-library/rea
  * App のルーティングテスト。
  *
  * ゴール条件（Phase 1）:
- * - "/" でダッシュボード + 手入力フォーム のみが表示される（RecordListは表示されない）
- * - "/admin" で管理者ログイン画面が表示される（未ログイン時）
- * - トップページからのリンクは無しで /admin はURL直打ちのみ
- * - ログイン後は管理者用一覧画面が表示される
+ * - "/" でダッシュボード + 手入力フォーム + 登録一覧 がタブ切り替えで表示される
  */
 
 import { MemoryRouter } from "react-router-dom";
 import { App } from "@/components/App";
 
+// Mock the supabase client for routing tests
+vi.mock("@/infrastructure/supabaseClient", () => ({
+  supabase: {
+    auth: {
+      signInWithPassword: vi.fn().mockImplementation(async (credentials) => {
+        if (credentials.email === "test@example.com" && credentials.password === "password123") {
+          const session = { user: { email: "test@example.com" }, access_token: "mock-token" };
+          return { error: null, data: { session } };
+        }
+        return { error: { message: "Invalid credentials" } };
+      }),
+      getSession: vi.fn().mockResolvedValue({ data: { session: null } }),
+      signOut: vi.fn().mockResolvedValue({ error: null }),
+      onAuthStateChange: vi.fn().mockImplementation((callback) => {
+        callback(null, null);
+        return { data: { subscription: { unsubscribe: vi.fn() } } };
+      }),
+    },
+    from: vi.fn().mockReturnValue({
+      select: vi.fn().mockResolvedValue({ data: [], error: null }),
+      insert: vi.fn().mockReturnThis(),
+      update: vi.fn().mockReturnThis(),
+      delete: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      single: vi.fn().mockResolvedValue({ data: null, error: null }),
+    }),
+  },
+}));
+
 describe("Phase1: ルーティング統合", () => {
   describe("トップページ (/)", () => {
-    it("/ にアクセスするとダッシュボードが表示されること", () => {
+    it("/ にアクセスするとダッシュボードが表示されること（初期状態）", () => {
       render(
         <MemoryRouter initialEntries={["/"]}>
           <App />
         </MemoryRouter>,
       );
-      expect(screen.getByText(/Maple CUBE/i)).toBeInTheDocument();
+      // Use getByRole for banner and getByText for dashboard title
+      expect(screen.getByRole("banner")).toHaveTextContent(/Maple CUBE/i);
+      expect(screen.getByText(/PROBABILITY OVERVIEW/i)).toBeInTheDocument();
     });
 
-    it("/ にアクセスすると手入力フォームが表示されること", () => {
+    it("/ にアクセスしても ManualEntryForm は初期状態で表示されないこと", () => {
       render(
         <MemoryRouter initialEntries={["/"]}>
           <App />
         </MemoryRouter>,
       );
-      expect(screen.getByTestId("manual-entry-form")).toBeInTheDocument();
+      // 初期状態ではフォームは非表示（ダッシュボードが表示）
+      expect(screen.queryByTestId("manual-entry-form")).not.toBeInTheDocument();
     });
 
-    it("/ にアクセスしても登録一覧（RecordList）は表示されないこと", () => {
+    it("/ にアクセスしても RecordList は初期状態で表示されないこと", () => {
       render(
         <MemoryRouter initialEntries={["/"]}>
           <App />
@@ -42,125 +71,26 @@ describe("Phase1: ルーティング統合", () => {
       );
       expect(screen.queryByTestId("record-list")).not.toBeInTheDocument();
     });
-  });
 
-  describe("管理者ページ (/admin)", () => {
-    it("/admin にアクセスするとログインフォームが表示されること", () => {
+    it("データ登録タブをクリックするとフォームが表示されること", () => {
       render(
-        <MemoryRouter initialEntries={["/admin"]}>
+        <MemoryRouter initialEntries={["/"]}>
           <App />
         </MemoryRouter>,
       );
-      expect(screen.getByTestId("admin-login-form")).toBeInTheDocument();
+      fireEvent.click(screen.getByRole("tab", { name: /データ登録/ }));
+      expect(screen.getByTestId("manual-entry-form")).toBeInTheDocument();
     });
 
-    it("/admin は手入力フォームを表示しないこと", () => {
+    it("登録一覧タブをクリックすると一覧が表示されること", () => {
       render(
-        <MemoryRouter initialEntries={["/admin"]}>
+        <MemoryRouter initialEntries={["/"]}>
           <App />
         </MemoryRouter>,
       );
-      expect(
-        screen.queryByTestId("manual-entry-form"),
-      ).not.toBeInTheDocument();
-    });
-
-    it("/admin でログイン成功後は一覧表示に切り替わること", async () => {
-      render(
-        <MemoryRouter initialEntries={["/admin"]}>
-          <App />
-        </MemoryRouter>,
-      );
-
-      fireEvent.change(screen.getByLabelText("ID"), {
-        target: { value: "admin" },
-      });
-      fireEvent.change(screen.getByLabelText("パスワード"), {
-        target: { value: "admin" },
-      });
-      fireEvent.click(screen.getByRole("button", { name: /ログイン/ }));
-
-      await waitFor(() => {
-        expect(
-          screen.queryByTestId("admin-login-form"),
-        ).not.toBeInTheDocument();
-        expect(screen.getByTestId("record-list")).toBeInTheDocument();
-      });
-    });
-
-    it("/admin でログイン失敗するとログインフォームのままであること", async () => {
-      render(
-        <MemoryRouter initialEntries={["/admin"]}>
-          <App />
-        </MemoryRouter>,
-      );
-
-      fireEvent.change(screen.getByLabelText("ID"), {
-        target: { value: "wrong" },
-      });
-      fireEvent.change(screen.getByLabelText("パスワード"), {
-        target: { value: "wrong" },
-      });
-      fireEvent.click(screen.getByRole("button", { name: /ログイン/ }));
-
-      await waitFor(() => {
-        expect(screen.getByTestId("admin-login-form")).toBeInTheDocument();
-        // エラーメッセージ
-        expect(
-          screen.getByText(/ID またはパスワードが違います/),
-        ).toBeInTheDocument();
-      });
-    });
-
-    it("未ログイン状態では /admin で一覧が表示されないこと", () => {
-      render(
-        <MemoryRouter initialEntries={["/admin"]}>
-          <App />
-        </MemoryRouter>,
-      );
-      // ログインフォームは表示されているが一覧は表示されない
-      expect(screen.getByTestId("admin-login-form")).toBeInTheDocument();
-      expect(screen.queryByText(/管理者画面/)).not.toBeInTheDocument();
-    });
-  });
-
-  describe("Phase1: /admin 経由の登録・編集・削除フロー（管理画面からの操作）", () => {
-    it("/admin でログイン後、RecordListで登録→編集→更新が動作すること", async () => {
-      render(
-        <MemoryRouter initialEntries={["/admin"]}>
-          <App />
-        </MemoryRouter>,
-      );
-
-      // ログイン
-      fireEvent.change(screen.getByLabelText("ID"), {
-        target: { value: "admin" },
-      });
-      fireEvent.change(screen.getByLabelText("パスワード"), {
-        target: { value: "admin" },
-      });
-      fireEvent.click(screen.getByRole("button", { name: /ログイン/ }));
-
-      await waitFor(() => {
-        expect(screen.queryByTestId("admin-login-form")).not.toBeInTheDocument();
-      });
-
-      // 管理画面内でManualEntryFormを操作（新しいレコードを登録）
-      const form = within(screen.getByTestId("manual-entry-form"));
-      fireEvent.change(form.getByLabelText(/サーバー/), {
-        target: { value: "かえで" },
-      });
-      fireEvent.change(form.getByLabelText(/使用個数/), {
-        target: { value: "5" },
-      });
-      fireEvent.click(form.getByRole("button", { name: /登録/ }));
-
-      await waitFor(() => {
-        expect(screen.queryByText(/データがありません/)).not.toBeInTheDocument();
-      });
-
-      const rows = screen.queryAllByTestId(/record-row-/);
-      expect(rows.length).toBe(1);
+      fireEvent.click(screen.getByRole("tab", { name: /登録一覧/ }));
+      // When no data, shows "データがありません" text
+      expect(screen.getByText(/データがありません/)).toBeInTheDocument();
     });
   });
 });

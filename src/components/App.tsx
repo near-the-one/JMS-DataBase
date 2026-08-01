@@ -4,18 +4,12 @@ import { createRecordRepository } from "@/data/recordRepository";
 import { Routes, Route, useInRouterContext } from "react-router-dom";
 import { Dashboard } from "@/components/Dashboard";
 import { ManualEntryForm } from "@/components/ManualEntryForm";
-import { RecordList } from "@/components/RecordList";
-import { AdminPage } from "@/components/AdminPage";
 import type { ManualEntryInput } from "@/components/ManualEntryForm";
 import type { ManualEntryRecord } from "@/types";
 import "./common.module.css";
 
-interface HomePageProps {
-  showRecordList?: boolean;
-}
-
 /** Phase 2: トップページ（Supabase連携）。CRUD処理は同期的にstate更新し、repo非同期待機しない */
-function HomePage({ showRecordList = false }: HomePageProps) {
+function HomePage() {
   const repo = createRecordRepository();
   const [records, setRecords] = useState<ManualEntryRecord[]>([]);
   const [editId, setEditId] = useState<number | undefined>(undefined);
@@ -23,6 +17,8 @@ function HomePage({ showRecordList = false }: HomePageProps) {
   const [dialogType, setDialogType] = useState<'error' | 'success'>('error');
   const [dialogMessage, setDialogMessage] = useState('');
   const [activeTab, setActiveTab] = useState<'dashboard' | 'register'>('dashboard');
+  const nextIdRef = useRef(1);
+  const [formResetKey, setFormResetKey] = useState(0);
 
   const showError = (msg: string) => {
     setDialogMessage(msg);
@@ -34,8 +30,6 @@ function HomePage({ showRecordList = false }: HomePageProps) {
     setDialogType('success');
     setDialogOpen(true);
   };
-  const nextIdRef = useRef(1);
-  const [formResetKey, setFormResetKey] = useState(0);
 
   useEffect(() => {
     repo.getAll().then((data) => {
@@ -80,26 +74,6 @@ function HomePage({ showRecordList = false }: HomePageProps) {
     [repo],
   );
 
-  const openFilter = useCallback(() => {
-    // No-op for non-admin view
-  }, []);
-
-  const handleEdit = useCallback((id: number) => {
-    setEditId(id);
-    setActiveTab('register');
-  }, []);
-
-  const handleDelete = useCallback(
-    (id: number) => {
-      setRecords((prev) => prev.filter((r) => r.id !== id));
-      if (editId === id) {
-        setEditId(undefined);
-      }
-      repo.delete(id).catch((err: Error) => showError(err.message));
-    },
-    [repo, editId],
-  );
-
   return (
     <div>
       <MessageDialog open={dialogOpen} type={dialogType} message={dialogMessage} onClose={() => setDialogOpen(false)} />
@@ -141,20 +115,6 @@ function HomePage({ showRecordList = false }: HomePageProps) {
           />
         </>
       )}
-      {showRecordList && records.length === 0 && (
-        <div>データがありません</div>
-      )}
-      {showRecordList && records.length > 0 && (
-        <>
-          <h2>登録一覧</h2>
-          <RecordList
-            records={records}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-            openFilter={openFilter}
-          />
-        </>
-      )}
       <footer style={{ marginTop: "3rem", paddingTop: "1rem", borderTop: "1px solid var(--color-border)", textAlign: "center", color: "var(--color-text-muted)" }}>
         <a href="https://x.com/Hn2Wb" target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}>
           @Hn2Wb on X
@@ -172,20 +132,18 @@ export function App() {   const inRouter = useInRouterContext();
   if (inRouter) {
     return (
       <Routes>
-        <Route path="/" element={<HomePage showRecordList={false} />} />
-        <Route path="/admin" element={<AdminPage />} />
+        <Route path="/" element={<HomePage />} />
       </Routes>
     );
   }
-  return <HomePage showRecordList={true} />;
+  return <HomePage />;
 }
 
 /** ルーター付きApp。 react-router-dom の context 下でルーティングを行う */
 export function AppRouter() {
   return (
     <Routes>
-      <Route path="/" element={<HomePage showRecordList={false} />} />
-      <Route path="/admin" element={<AdminPage />} />
+      <Route path="/" element={<HomePage />} />
     </Routes>
   );
 }

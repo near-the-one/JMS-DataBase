@@ -3,7 +3,6 @@ import { GRADE_LABELS, POTENTIAL_LABELS, CUBE_LABELS } from "@/types";
 import { useState, useEffect } from "react";
 import { supabase } from "@/infrastructure/supabaseClient";
 import { SupabaseRecordRepository } from "@/infrastructure/repository/SupabaseRecordRepository";
-import "./Dashboard.module.css";
 
 const GRADE_COLORS: Record<Grade, string> = {
   rare: "#0000ff",
@@ -18,10 +17,11 @@ const CUBE_ICONS: Record<CubeType, string> = {
   neo_additional: "/assets/cube-icons/cube-neo-additional.png",
 };
 
+// 等級遷移の順序: ユニーク→レジェンダリー（主要）、エピック→ユニーク、レア→エピック
 const TRANSITIONS: [Grade, Grade][] = [
-  ["unique", "legendary"],
-  ["epic", "unique"],
-  ["rare", "epic"],
+  ["unique", "legendary"],  // 主要表示
+  ["epic", "unique"],       // 下部表示
+  ["rare", "epic"],         // 下部表示
 ];
 
 type PotentialGroup = {
@@ -100,6 +100,11 @@ function getStat(
   return statMap.get(`${potentialType}|${cubeType}|${from}|${to}`);
 }
 
+function formatRate(rate: number | undefined): string {
+  if (rate === undefined || rate === 0) return "—";
+  return `${Number(rate).toFixed(1)}%`;
+}
+
 export function Dashboard() {
   const [cubeUsageStats, setCubeUsageStats] = useState<Array<{
     potential_type: string;
@@ -138,13 +143,13 @@ export function Dashboard() {
   });
   const statMap = buildStatMap(aggregated);
 
-  return (<>
+  return (
     <div className="container theme-bg">
       {GROUPS.map((group) => (
         <section key={group.potentialType} aria-labelledby={`section-${group.potentialType}`} className="card">
           <h2 id={`section-${group.potentialType}`}>{POTENTIAL_LABELS[group.potentialType]}</h2>
           {group.cubes.map((cubeType) => (
-            <div key={cubeType}>
+            <div key={cubeType} className="cube-section">
               <h3>
                 <img
                   src={CUBE_ICONS[cubeType]}
@@ -153,37 +158,62 @@ export function Dashboard() {
                 />
                 {CUBE_LABELS[cubeType]}
               </h3>
-              <table>
-                <thead>
-                  <tr>
-                    <th>等級遷移</th>
-                    <th>通常</th>
-                    <th>ミラクル</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {TRANSITIONS.map(([from, to]) => {
+              <div className="transition-display">
+                {/* Main transition: ユニーク → レジェンダリー */}
+                <div className="main-transition">
+                  <div className="transition-label">
+                    <span style={{ color: GRADE_COLORS.unique }}>{GRADE_LABELS.unique}</span>
+                    <span className="arrow">→</span>
+                    <span style={{ color: GRADE_COLORS.legendary }}>{GRADE_LABELS.legendary}</span>
+                  </div>
+                  <div className="rate-pair">
+                    <div className="rate-item">
+                      <span className="rate-label">通常</span>
+                      <span className="rate-value">
+                        {(() => {
+                          const stat = getStat(statMap, group.potentialType, cubeType, "unique", "legendary");
+                          return formatRate(stat?.normal_rate);
+                        })()}
+                      </span>
+                    </div>
+                    <div className="rate-item">
+                      <span className="rate-label">ミラクル</span>
+                      <span className="rate-value">
+                        {(() => {
+                          const stat = getStat(statMap, group.potentialType, cubeType, "unique", "legendary");
+                          return formatRate(stat?.miracle_rate);
+                        })()}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Sub transitions: エピック → ユニーク, レア → エピック */}
+                <div className="sub-transitions">
+                  {TRANSITIONS.slice(1).map(([from, to]) => {
                     const stat = getStat(statMap, group.potentialType, cubeType, from, to);
-                    const normalRate = stat?.normal_rate ?? 0;
-                    const miracleRate = stat?.miracle_rate ?? 0;
+                    const normalRate = stat?.normal_rate;
+                    const miracleRate = stat?.miracle_rate;
                     return (
-                      <tr key={`${cubeType}-${from}-${to}`}>
-                        <td>
+                      <div key={`${cubeType}-${from}-${to}`} className="sub-transition">
+                        <div className="sub-transition-label">
                           <span style={{ color: GRADE_COLORS[from] }}>{GRADE_LABELS[from]}</span>
-                          {" → "}
+                          <span className="arrow">→</span>
                           <span style={{ color: GRADE_COLORS[to] }}>{GRADE_LABELS[to]}</span>
-                        </td>
-                        <td>{Number(normalRate).toFixed(1)}%</td>
-                        <td>{Number(miracleRate).toFixed(1)}%</td>
-                      </tr>
+                        </div>
+                        <div className="sub-rate-pair">
+                          <span className="sub-rate normal">通常: {formatRate(normalRate)}</span>
+                          <span className="sub-rate miracle">ミラクル: {formatRate(miracleRate)}</span>
+                        </div>
+                      </div>
                     );
                   })}
-                </tbody>
-              </table>
+                </div>
+              </div>
             </div>
           ))}
         </section>
       ))}
     </div>
-      </>);
+  );
 }
