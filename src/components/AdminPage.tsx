@@ -131,7 +131,6 @@ export function AdminPage({
       </div>
       <RecordList
         records={applyFilters(records)}
-        filters={filters}
         onEdit={handleEdit}
         onDelete={handleDelete}
         openFilter={openFilter}

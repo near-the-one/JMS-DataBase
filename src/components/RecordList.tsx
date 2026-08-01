@@ -1,13 +1,12 @@
 import { useState } from "react";
 // Filter icon omitted to avoid external dependency
 import type { ManualEntryRecord } from "@/types";
-import { GRADE_LABELS, POTENTIAL_LABELS, CUBE_LABELS } from "@/types";
+import { POTENTIAL_LABELS, CUBE_LABELS } from "@/types";
 
 interface RecordListProps {
   records: ManualEntryRecord[];
   onEdit: (id: number) => void;
   onDelete: (id: number) => void;
-  filters: any;
   openFilter: () => void;
 }
 
@@ -20,7 +19,7 @@ type SortKey =
   | "character_name"
   | "timestamp";
 
-export function RecordList({ records, onEdit, onDelete, filters, openFilter }: RecordListProps) {
+export function RecordList({ records, onEdit, onDelete, openFilter }: RecordListProps) {
   if (records.length === 0) {
     return (
       <div data-testid="record-list">

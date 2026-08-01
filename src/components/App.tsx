@@ -19,14 +19,12 @@ function HomePage({ showRecordList = false }: HomePageProps) {
   const repo = createRecordRepository();
   const [records, setRecords] = useState<ManualEntryRecord[]>([]);
   const [editId, setEditId] = useState<number | undefined>(undefined);
-  const [error, setError] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogType, setDialogType] = useState<'error' | 'success'>('error');
   const [dialogMessage, setDialogMessage] = useState('');
   const [activeTab, setActiveTab] = useState<'dashboard' | 'register'>('dashboard');
 
   const showError = (msg: string) => {
-    setError(msg);
     setDialogMessage(msg);
     setDialogType('error');
     setDialogOpen(true);
@@ -43,7 +41,7 @@ function HomePage({ showRecordList = false }: HomePageProps) {
     repo.getAll().then((data) => {
       setRecords(data);
     }).catch((err: Error) => {
-      setError(err.message || "データの読み込みに失敗しました");
+      showError(err.message || "データの読み込みに失敗しました");
     });
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -82,6 +80,10 @@ function HomePage({ showRecordList = false }: HomePageProps) {
     [repo],
   );
 
+  const openFilter = useCallback(() => {
+    // No-op for non-admin view
+  }, []);
+
   const handleEdit = useCallback((id: number) => {
     setEditId(id);
     setActiveTab('register');
@@ -93,7 +95,7 @@ function HomePage({ showRecordList = false }: HomePageProps) {
       if (editId === id) {
         setEditId(undefined);
       }
-      repo.delete(id).catch((err: Error) => setError(err.message));
+      repo.delete(id).catch((err: Error) => showError(err.message));
     },
     [repo, editId],
   );
@@ -127,7 +129,7 @@ function HomePage({ showRecordList = false }: HomePageProps) {
           登録フォーム
         </button>
       </div>
-      {activeTab === 'dashboard' && <Dashboard records={records} />}
+      {activeTab === 'dashboard' && <Dashboard />}
       {activeTab === 'register' && (
         <>
           <h2>キューブ使用データ登録</h2>
@@ -149,6 +151,7 @@ function HomePage({ showRecordList = false }: HomePageProps) {
             records={records}
             onEdit={handleEdit}
             onDelete={handleDelete}
+            openFilter={openFilter}
           />
         </>
       )}

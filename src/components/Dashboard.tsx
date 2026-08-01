@@ -1,13 +1,9 @@
-import type { AggregatedStat, PotentialType, CubeType, Grade, ServerName, ManualEntryRecord } from "@/types";
+import type { AggregatedStat, PotentialType, CubeType, Grade } from "@/types";
 import { GRADE_LABELS, POTENTIAL_LABELS, CUBE_LABELS } from "@/types";
-// // import { aggregateRecords } from "@/data/mockData"; // Replaced with live stats // Replaced with live stats
 import { useState, useEffect } from "react";
 import { supabase } from "@/infrastructure/supabaseClient";
 import { SupabaseRecordRepository } from "@/infrastructure/repository/SupabaseRecordRepository";
 import "./Dashboard.module.css";
-
-// Placeholder aggregateRecords to avoid undefined error when using live stats
-const aggregateRecords = (records: any) => [] as any;
 
 const GRADE_COLORS: Record<Grade, string> = {
   rare: "#0000ff",
@@ -53,7 +49,7 @@ export const useMiracleEvents = () => {
   useEffect(() => {
     const fetch = async () => {
       const { data, error } = await supabase.from("miracle_time_schedules").select("*");
-      if (error) {
+      if (error || !data) {
         console.error('Failed to load miracle schedules', error);
         setEvents([
           { id: "normal", date: "", description: "通常時", label: "通常時" },
@@ -104,8 +100,7 @@ function getStat(
   return statMap.get(`${potentialType}|${cubeType}|${from}|${to}`);
 }
 
-interface DashboardProps { records: ManualEntryRecord[]; }
-export function Dashboard({ records }: DashboardProps) {
+export function Dashboard() {
   const [cubeUsageStats, setCubeUsageStats] = useState<Array<{
     potential_type: string;
     cube_type: string;

@@ -1,5 +1,4 @@
 import type { ServerName } from "@/types";
-import common from "./common.module.css";
 import { SERVER_NAMES } from "@/types";
 
 export type ServerFilter = ServerName | "all";
@@ -14,7 +13,7 @@ export function ServerSelector({ value, onChange }: ServerSelectorProps) {
   return (
     <label>
       サーバー
-      <select className="input"
+      <select
         value={value ?? defaultValue}
         onChange={(e) => onChange?.(e.target.value as ServerFilter)}
       >

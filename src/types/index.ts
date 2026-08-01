@@ -96,7 +96,7 @@ export interface AggregatedStat {
 /** CubeUsageRecord を拡張した手入力用レコード */
 export interface ManualEntryRecord {
   id: number;
-  server_name: ServerName;
+  server_name: ServerName | null;
   potential_type: PotentialType;
   cube_type: CubeType;
   grade_before: Grade;

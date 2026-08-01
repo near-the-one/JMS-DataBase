@@ -1,10 +1,9 @@
 import { useState, useRef, useMemo, useEffect } from "react";
-import common from "./common.module.css";
 import type { ServerName, PotentialType, CubeType, Grade } from "@/types";
 import { SERVER_NAMES, GRADE_LABELS, GRADE_ORDER } from "@/types";
 
 export interface ManualEntryInput {
-  server_name: ServerName;
+  server_name: ServerName | null;
   potential_type: PotentialType;
   cube_type: CubeType;
   grade_before: Grade;
@@ -20,7 +19,6 @@ type FormErrors = Record<string, string>;
 
 // Validation constants
 const MAX_CHARACTER_NAME_LENGTH = 50;
-const MAX_SERVER_NAME_LENGTH = 20;
 
 interface ManualEntryFormProps {
   onSubmit: (data: ManualEntryInput & { id?: number }) => void;
@@ -58,10 +56,6 @@ const PART_OPTIONS: { value: string; label: string }[] = [
   { value: "accessory", label: "アクセサリー" },
 ];
 
-const GRADE_OPTIONS: { value: Grade; label: string }[] = GRADE_ORDER.map(
-  (g) => ({ value: g, label: GRADE_LABELS[g] }),
-);
-
 /** default quantity value exposed for tests */
 const DEFAULT_QUANTITY = "1";
 
@@ -87,8 +81,8 @@ export function ManualEntryForm({
   initialData,
   editId,
 }: ManualEntryFormProps) {
-  const [serverName, setServerName] = useState<string>(
-    initialData?.server_name ?? "",
+  const [serverName, setServerName] = useState<string | null>(
+    initialData?.server_name ?? null,
   );
   const [potentialType, setPotentialType] = useState<PotentialType>(
     initialData?.potential_type ?? "potential",
@@ -132,7 +126,7 @@ export function ManualEntryForm({
   const [part, setPart] = useState<string>(
     initialData?.part ?? "",
   );
-    // 使用日時（datetime-local） デフォルト空
+  // 使用日時（datetime-local） デフォルト空
   // 使用日時（datetime-local） デフォルトは現在日時
   const [timestamp, setTimestamp] = useState<string>(
     initialData?.timestamp
@@ -212,8 +206,6 @@ export function ManualEntryForm({
     // Parse grade transition into before/after grades
     // startGrade/endGrade already defined earlier
     // DB 用に整形したデータを送信
-    const gradeIdx = GRADE_ORDER.indexOf(startGrade as Grade);
-    const gradeTransitionId = gradeIdx + 1; // 1=Rare→Epic, 2=Epic→Unique, 3=Unique→Legendary
     // Determine timestamp value: use provided initialData timestamp if present, otherwise use user-changed value or current time
     let timestampValue: number;
     if (initialData?.timestamp) {
@@ -224,7 +216,7 @@ export function ManualEntryForm({
       timestampValue = Date.now();
     }
     onSubmit({
-      server_name: serverName || null,
+      server_name: serverName as ServerName | null,
       potential_type: potentialType,
       cube_type: cubeType,
       grade_before: startGrade as Grade,
@@ -245,10 +237,10 @@ export function ManualEntryForm({
           サーバー名（任意）
           <select
             id="server_name"
-            value={serverName}
+            value={serverName ?? ""}
             onChange={(e) => {
               markInteracted();
-              setServerName(e.target.value as ServerName);
+              setServerName(e.target.value as ServerName | null);
             }}
           >
             <option value="">-- 選択してください --</option>

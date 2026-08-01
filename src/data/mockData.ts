@@ -78,6 +78,7 @@ function generateRecords(
         grade_before: combo.grade_from,
         grade_after: upgraded ? combo.grade_to : combo.grade_from,
         quantity_used: perRecord,
+        upgraded,
         is_miracle_time: isMiracle,
       });
     }
