@@ -37,7 +37,7 @@ function HomePage() {
     }).catch((err: Error) => {
       showError(err.message || "データの読み込みに失敗しました");
     });
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []);
 
   const editingRecord = editId
     ? records.find((r) => r.id === editId)

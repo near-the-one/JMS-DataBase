@@ -11,18 +11,25 @@ const GRADE_COLORS: Record<Grade, string> = {
   legendary: "#008000",
 };
 
-const CUBE_ICONS: Record<CubeType, string> = {
-  neo: "/assets/cube-icons/cube-neo.png",
-  mega: "/assets/cube-icons/cube-mega.png",
-  neo_additional: "/assets/cube-icons/cube-neo-additional.png",
+const CUBE_SWATCH_COLORS: Record<CubeType, string> = {
+  neo: "#FF8A3D",
+  mega: "#E24F00",
+  neo_additional: "#FFC48A",
 };
 
-// 等級遷移の順序: ユニーク→レジェンダリー（主要）、エピック→ユニーク、レア→エピック
-const TRANSITIONS: [Grade, Grade][] = [
-  ["unique", "legendary"],  // 主要表示
-  ["epic", "unique"],       // 下部表示
-  ["rare", "epic"],         // 下部表示
-];
+const CUBE_SWATCH_CLASSES: Record<CubeType, string> = {
+  neo: "sw-neo",
+  mega: "sw-mega",
+  neo_additional: "sw-add",
+};
+
+// Map each cube type to its PRIMARY transition for the prob-grid
+// Reference design: ネオキューブ=エピック→ユニーク, メガキューブ=ユニーク→レジェンダリー, ネオアディショナル=レア→エピック
+const PRIMARY_TRANSITIONS: Record<CubeType, [Grade, Grade]> = {
+  neo: ["epic", "unique"],
+  mega: ["unique", "legendary"],
+  neo_additional: ["rare", "epic"],
+};
 
 type PotentialGroup = {
   potentialType: PotentialType;
@@ -36,14 +43,13 @@ const GROUPS: PotentialGroup[] = [
 
 export interface MiracleEvent {
   id: string;
-  date: string; // e.g. "2025/11/1"
-  description: string; // e.g. "全体" or "部位別[頭]"
-  label: string; // display string for UI
+  date: string;
+  description: string;
+  label: string;
 }
 
 export const MIRACLE_EVENTS: MiracleEvent[] = [];
 
-// Hook to load miracle schedule data from Supabase
 export const useMiracleEvents = () => {
   const [events, setEvents] = useState<MiracleEvent[]>([]);
   useEffect(() => {
@@ -51,14 +57,11 @@ export const useMiracleEvents = () => {
       const { data, error } = await supabase.from("miracle_time_schedules").select("*");
       if (error || !data) {
         console.error('Failed to load miracle schedules', error);
-        setEvents([
-          { id: "normal", date: "", description: "通常時", label: "通常時" },
-        ]);
+        setEvents([{ id: "normal", date: "", description: "通常時", label: "通常時" }]);
         return;
       }
       const fetched: MiracleEvent[] = data.map((row: any) => {
         const dateObj = new Date(row.start);
-        // Format as YYYY/MM/DD in JST (Asia/Tokyo)
         const formatted = dateObj.toLocaleDateString('ja-JP', {
           timeZone: 'Asia/Tokyo',
           year: 'numeric',
@@ -72,10 +75,7 @@ export const useMiracleEvents = () => {
           label: `${formatted} ${row.label}`,
         };
       });
-      setEvents([
-        { id: "normal", date: "", description: "通常時", label: "通常時" },
-        ...fetched,
-      ]);
+      setEvents([{ id: "normal", date: "", description: "通常時", label: "通常時" }, ...fetched]);
     };
     fetch();
   }, []);
@@ -102,7 +102,7 @@ function getStat(
 
 function formatRate(rate: number | undefined): string {
   if (rate === undefined || rate === 0) return "—";
-  return `${Number(rate).toFixed(1)}%`;
+  return Number(rate).toFixed(1);
 }
 
 export function Dashboard() {
@@ -116,13 +116,13 @@ export function Dashboard() {
     supply_rate: number;
   }>>([]);
 
-  // Load cube usage statistics from Supabase
+  const [isMiracleTime, setIsMiracleTime] = useState(false);
+
   useEffect(() => {
     const repo = new SupabaseRecordRepository();
     repo.getCubeUsageStats().then(setCubeUsageStats).catch(console.error);
   }, []);
 
-  // Build aggregated stats from live cube usage data
   const gradeMap: Record<number, [string, string]> = {
     1: ["rare", "epic"],
     2: ["epic", "unique"],
@@ -143,77 +143,62 @@ export function Dashboard() {
   });
   const statMap = buildStatMap(aggregated);
 
+  // Calculate total stats for stat-strip
+  const totalSamples = cubeUsageStats.reduce((sum, s) => sum + s.count, 0);
+  const cubeTypesUsed = new Set(cubeUsageStats.map(s => s.cube_type)).size;
+
   return (
     <div className="container theme-bg">
-      {GROUPS.map((group) => (
-        <section key={group.potentialType} aria-labelledby={`section-${group.potentialType}`} className="card">
-          <h2 id={`section-${group.potentialType}`}>{POTENTIAL_LABELS[group.potentialType]}</h2>
-          {group.cubes.map((cubeType) => (
-            <div key={cubeType} className="cube-section">
-              <h3>
-                <img
-                  src={CUBE_ICONS[cubeType]}
-                  alt=""
-                  style={{ width: 24, height: 24, verticalAlign: "middle", marginRight: 6 }}
-                />
-                {CUBE_LABELS[cubeType]}
-              </h3>
-              <div className="transition-display">
-                {/* Main transition: ユニーク → レジェンダリー */}
-                <div className="main-transition">
-                  <div className="transition-label">
-                    <span style={{ color: GRADE_COLORS.unique }}>{GRADE_LABELS.unique}</span>
-                    <span className="arrow">→</span>
-                    <span style={{ color: GRADE_COLORS.legendary }}>{GRADE_LABELS.legendary}</span>
-                  </div>
-                  <div className="rate-pair">
-                    <div className="rate-item">
-                      <span className="rate-label">通常</span>
-                      <span className="rate-value">
-                        {(() => {
-                          const stat = getStat(statMap, group.potentialType, cubeType, "unique", "legendary");
-                          return formatRate(stat?.normal_rate);
-                        })()}
-                      </span>
-                    </div>
-                    <div className="rate-item">
-                      <span className="rate-label">ミラクル</span>
-                      <span className="rate-value">
-                        {(() => {
-                          const stat = getStat(statMap, group.potentialType, cubeType, "unique", "legendary");
-                          return formatRate(stat?.miracle_rate);
-                        })()}
-                      </span>
-                    </div>
-                  </div>
-                </div>
+      {/* Miracle Banner */}
+      <div className="miracle-banner" style={{ display: isMiracleTime ? 'flex' : 'none' }}>
+        <span className="dot"></span>
+        ミラクルタイム開催中 — 昇級確率が通常の2倍になっています
+      </div>
 
-                {/* Sub transitions: エピック → ユニーク, レア → エピック */}
-                <div className="sub-transitions">
-                  {TRANSITIONS.slice(1).map(([from, to]) => {
-                    const stat = getStat(statMap, group.potentialType, cubeType, from, to);
-                    const normalRate = stat?.normal_rate;
-                    const miracleRate = stat?.miracle_rate;
-                    return (
-                      <div key={`${cubeType}-${from}-${to}`} className="sub-transition">
-                        <div className="sub-transition-label">
-                          <span style={{ color: GRADE_COLORS[from] }}>{GRADE_LABELS[from]}</span>
-                          <span className="arrow">→</span>
-                          <span style={{ color: GRADE_COLORS[to] }}>{GRADE_LABELS[to]}</span>
-                        </div>
-                        <div className="sub-rate-pair">
-                          <span className="sub-rate normal">通常: {formatRate(normalRate)}</span>
-                          <span className="sub-rate miracle">ミラクル: {formatRate(miracleRate)}</span>
-                        </div>
-                      </div>
-                    );
-                  })}
+      <div className="page-head">
+        <div className="eyebrow">PROBABILITY OVERVIEW</div>
+        <h1>種類ごとの昇級確率</h1>
+        <p>コミュニティが登録したキューブ使用データから算出したリアルタイム集計です。</p>
+      </div>
+
+      {/* Prob Grid - 3 cards showing primary transition for each cube type */}
+      <div className="prob-grid">
+        {GROUPS.flatMap((group) =>
+          group.cubes.map((cubeType) => {
+            const [fromGrade, toGrade] = PRIMARY_TRANSITIONS[cubeType];
+            const stat = getStat(statMap, group.potentialType, cubeType, fromGrade, toGrade);
+            const normalRate = stat?.normal_rate ?? 0;
+            const miracleRate = stat?.miracle_rate ?? 0;
+            const displayRate = isMiracleTime ? miracleRate : normalRate;
+            const sampleCount = stat?.count ?? 0;
+            const barWidth = Math.min(displayRate * 10, 100); // Scale for visual
+
+            return (
+              <div key={cubeType} className="prob-card">
+                <div className="prob-card-head">
+                  <span className={`cube-swatch ${CUBE_SWATCH_CLASSES[cubeType]}`}></span>
+                  <span className="name">{CUBE_LABELS[cubeType]}</span>
+                  <span className="type-badge">{POTENTIAL_LABELS[group.potentialType]}</span>
                 </div>
+                <div className="grade-flow">
+                  {GRADE_LABELS[fromGrade]} <span className="arrow">→</span> <b>{GRADE_LABELS[toGrade]}</b>
+                </div>
+                <div className="prob-big">{formatRate(displayRate)}<span className="sign">%</span></div>
+                <div className="prob-sub">サンプル数 {sampleCount.toLocaleString()}件</div>
+                <div className="prob-bar"><div className="prob-fill" style={{ width: `${barWidth}%` }}></div></div>
               </div>
-            </div>
-          ))}
-        </section>
-      ))}
+            );
+          })
+        )}
+      </div>
+
+      {/* Stat Strip */}
+      <div className="stat-strip">
+        <div className="stat-cell"><div className="label">総サンプル数</div><div className="value num">{totalSamples.toLocaleString()}</div></div>
+        <div className="stat-cell"><div className="label">対応キューブ種</div><div className="value num">{cubeTypesUsed}</div></div>
+        <div className="stat-cell"><div className="label">参加ユーザー</div><div className="value num">—</div></div>
+        <div className="stat-cell"><div className="label">最終更新</div><div className="value num" style={{ fontSize: '16px' }}>—</div></div>
+      </div>
     </div>
   );
 }
