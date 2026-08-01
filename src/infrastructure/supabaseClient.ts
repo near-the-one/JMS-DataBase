@@ -3,8 +3,9 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 // Retrieve env vars both in Vite (browser) and in Node/Vitest environments.
 // In Vite we have import.meta.env, otherwise fall back to process.env (if available).
-const hasProcess = typeof process !== 'undefined' && process.env;
-const _env = (typeof import.meta !== 'undefined' && import.meta.env) ? import.meta.env : (hasProcess ? process.env : {});
+// Use globalThis to check for process to avoid TypeScript errors in browser builds.
+const globalEnv = (typeof globalThis !== 'undefined' && (globalThis as any).process?.env) ? (globalThis as any).process.env : {};
+const _env = (typeof import.meta !== 'undefined' && import.meta.env) ? import.meta.env : globalEnv;
 const supabaseUrl = _env.VITE_SUPABASE_URL as string | undefined;
 const supabaseAnonKey = _env.VITE_SUPABASE_ANON_KEY as string | undefined;
 
