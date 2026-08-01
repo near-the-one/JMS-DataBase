@@ -96,10 +96,40 @@ export function Dashboard() {
   }>>([]);
 
   const [isMiracleTime, setIsMiracleTime] = useState(false);
+  const [participantUsers, setParticipantUsers] = useState(0);
 
   useEffect(() => {
     const repo = new SupabaseRecordRepository();
     repo.getCubeUsageStats().then(setCubeUsageStats).catch(console.error);
+  }, []);
+
+  // 参加ユーザー数を計算（キャラ名ありの重複除外 + 無記名分で+1）
+  useEffect(() => {
+    const calculateParticipants = async () => {
+      try {
+        const repo = new SupabaseRecordRepository();
+        const records = await repo.getAll();
+
+        // キャラ名があるレコード（nullでないかつ空でない）から重複を除外
+        const namedUsers = new Set(
+          records
+            .filter(r => r.character_name !== null && r.character_name !== '')
+            .map(r => r.character_name!)
+        );
+
+        // 無記名レコードがあるかどうかをチェック
+        const hasUnnamed = records.some(r => r.character_name === null || r.character_name === '');
+
+        // 参加ユーザー数 = 名前があるユニークユーザー数 + (無記名レコードがある場合は+1)
+        const count = namedUsers.size + (hasUnnamed ? 1 : 0);
+        setParticipantUsers(count);
+      } catch (error) {
+        console.error('Failed to calculate participant users:', error);
+        setParticipantUsers(0);
+      }
+    };
+
+    calculateParticipants();
   }, []);
 
   // Fetch miracle time schedules and check if currently in miracle time
@@ -172,8 +202,9 @@ export function Dashboard() {
   const statMap = buildStatMap(deduped);
 
   // Calculate total stats for stat-strip
-  const totalSamples = cubeUsageStats.reduce((sum, s) => sum + s.count, 0);
-  const cubeTypesUsed = new Set(cubeUsageStats.map(s => s.cube_type)).size;
+  const totalSamples = cubeUsageStats.reduce((sum, s) => sum + s.total_quantity, 0);
+  // 対応キューブ種は型定義に基づく固定値（データの有無に関わり）
+  const cubeTypesUsed = Object.keys(CUBE_LABELS).length;
 
   return (
     <>
@@ -224,7 +255,7 @@ export function Dashboard() {
       <div className="stat-strip">
         <div className="stat-cell"><div className="label">総サンプル数</div><div className="value num">{totalSamples.toLocaleString()}</div></div>
         <div className="stat-cell"><div className="label">対応キューブ種</div><div className="value num">{cubeTypesUsed}</div></div>
-        <div className="stat-cell"><div className="label">参加ユーザー</div><div className="value num">—</div></div>
+        <div className="stat-cell"><div className="label">参加ユーザー</div><div className="value num">{participantUsers > 0 ? participantUsers.toLocaleString() : '—'}</div></div>
         <div className="stat-cell"><div className="label">最終更新</div><div className="value num" style={{ fontSize: '16px' }}>—</div></div>
       </div>
     </>
