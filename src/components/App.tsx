@@ -75,60 +75,60 @@ function HomePage() {
   );
 
   return (
-    <div>
+    <>
       <MessageDialog open={dialogOpen} type={dialogType} message={dialogMessage} onClose={() => setDialogOpen(false)} />
-      {/* タイトルとサンプルデータ数は常に表示 */}
-      <header style={{ textAlign: "center", marginBottom: "1rem" }}>
-        <h1><a href="/" style={{ textDecoration: "none", color: "inherit" }}>Maple CUBE</a></h1>
-        <div style={{ color: "var(--color-text-muted)", fontSize: "0.9rem" }}>
-          サンプルデータ数: {records.reduce((sum, r) => sum + r.quantity_used, 0).toLocaleString()} 個
-        </div>
+      <header>
+        <div className="logo"><span className="logo-dot"></span>Maple CUBE</div>
+        <nav>
+          <button
+            role="tab"
+            aria-selected={activeTab === 'dashboard'}
+            onClick={() => setActiveTab('dashboard')}
+            className={`navtab ${activeTab === 'dashboard' ? 'active' : ''}`}
+          >
+            ダッシュボード
+          </button>
+          <button
+            role="tab"
+            aria-selected={activeTab === 'register'}
+            onClick={() => setActiveTab('register')}
+            className={`navtab ${activeTab === 'register' ? 'active' : ''}`}
+          >
+            登録フォーム
+          </button>
+        </nav>
       </header>
-      {/* タブ切替 */}
-      <div className="tabs" role="tablist">
-        <button
-          role="tab"
-          aria-selected={activeTab === 'dashboard'}
-          onClick={() => setActiveTab('dashboard')}
-          className={activeTab === 'dashboard' ? 'active' : ''}
-        >
-          ダッシュボード
-        </button>
-        <button
-          role="tab"
-          aria-selected={activeTab === 'register'}
-          onClick={() => setActiveTab('register')}
-          className={activeTab === 'register' ? 'active' : ''}
-        >
-          登録フォーム
-        </button>
-      </div>
-      {activeTab === 'dashboard' && <Dashboard />}
-      {activeTab === 'register' && (
-        <>
-          <h2>キューブ使用データ登録</h2>
-          <ManualEntryForm
-            key={formResetKey}
-            onSubmit={handleSubmit}
-            initialData={editingRecord}
-            editId={editId}
-          />
-        </>
-      )}
-      <footer style={{ marginTop: "3rem", paddingTop: "1rem", borderTop: "1px solid var(--color-border)", textAlign: "center", color: "var(--color-text-muted)" }}>
-        <a href="https://x.com/Hn2Wb" target="_blank" rel="noopener noreferrer" style={{ color: "inherit", textDecoration: "none" }}>
-          @Hn2Wb on X
-        </a>
-      </footer>
-    </div>
+      <main>
+        {activeTab === 'dashboard' && <Dashboard />}
+        {activeTab === 'register' && (
+          <>
+            <div className="page-head">
+              <div className="eyebrow">SUBMIT DATA</div>
+              <h1>キューブ使用データ登録</h1>
+              <p>使用したキューブの情報を入力してください。</p>
+            </div>
+            <div className="form-card">
+              <ManualEntryForm
+                key={formResetKey}
+                onSubmit={handleSubmit}
+                initialData={editingRecord}
+                editId={editId}
+              />
+            </div>
+          </>
+        )}
+      </main>
+      <footer>Maple CUBE — コミュニティ計測による非公式データベース</footer>
+    </>
   );
 }
 
 /**
- * App component: when rendered inside a Router, uses Routes for / and /admin.
+ * App component: when rendered inside a Router, uses Routes for /.
  * When rendered without a Router (legacy App.test.tsx), falls back to HomePage directly.
  */
-export function App() {   const inRouter = useInRouterContext();
+export function App() {
+  const inRouter = useInRouterContext();
   if (inRouter) {
     return (
       <Routes>

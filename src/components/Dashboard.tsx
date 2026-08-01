@@ -4,27 +4,6 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/infrastructure/supabaseClient";
 import { SupabaseRecordRepository } from "@/infrastructure/repository/SupabaseRecordRepository";
 
-const GRADE_COLORS: Record<Grade, string> = {
-  rare: "#0000ff",
-  epic: "#800080",
-  unique: "#ffd700",
-  legendary: "#008000",
-};
-
-const CUBE_SWATCH_COLORS: Record<CubeType, string> = {
-  neo: "#FF8A3D",
-  mega: "#E24F00",
-  neo_additional: "#FFC48A",
-};
-
-const CUBE_SWATCH_CLASSES: Record<CubeType, string> = {
-  neo: "sw-neo",
-  mega: "sw-mega",
-  neo_additional: "sw-add",
-};
-
-// Map each cube type to its PRIMARY transition for the prob-grid
-// Reference design: ネオキューブ=エピック→ユニーク, メガキューブ=ユニーク→レジェンダリー, ネオアディショナル=レア→エピック
 const PRIMARY_TRANSITIONS: Record<CubeType, [Grade, Grade]> = {
   neo: ["epic", "unique"],
   mega: ["unique", "legendary"],
@@ -123,6 +102,29 @@ export function Dashboard() {
     repo.getCubeUsageStats().then(setCubeUsageStats).catch(console.error);
   }, []);
 
+  // Fetch miracle time schedules and check if currently in miracle time
+  useEffect(() => {
+    const fetchSchedules = async () => {
+      const { data, error } = await supabase.from("miracle_time_schedules").select("start,end");
+      if (error || !data) {
+        console.error('Failed to load miracle schedules', error);
+        return;
+      }
+      const schedules = (data || []) as Array<{ start: string; end: string }>;
+
+      // Check if current time (JST) falls within any schedule
+      const now = new Date();
+      const nowJST = new Date(now.getTime() + 9 * 60 * 60 * 1000); // Convert to JST
+      const isMiracle = schedules.some(s => {
+        const start = new Date(s.start).getTime();
+        const end = new Date(s.end).getTime();
+        return nowJST.getTime() >= start && nowJST.getTime() <= end;
+      });
+      setIsMiracleTime(isMiracle);
+    };
+    fetchSchedules();
+  }, []);
+
   const gradeMap: Record<number, [string, string]> = {
     1: ["rare", "epic"],
     2: ["epic", "unique"],
@@ -130,8 +132,23 @@ export function Dashboard() {
   };
   const aggregated = cubeUsageStats.map((s) => {
     const [grade_from, grade_to] = gradeMap[s.grade_transition] ?? ["", ""];
-    const normal_rate = s.isMiracle ? 0 : s.supply_rate;
-    const miracle_rate = s.isMiracle ? s.supply_rate : 0;
+    // Since getCubeUsageStats separates by isMiracle, we need to find normal and miracle entries
+    const normalEntry = cubeUsageStats.find(
+      entry => !entry.isMiracle &&
+               entry.potential_type === s.potential_type &&
+               entry.cube_type === s.cube_type &&
+               entry.grade_transition === s.grade_transition
+    );
+    const miracleEntry = cubeUsageStats.find(
+      entry => entry.isMiracle &&
+               entry.potential_type === s.potential_type &&
+               entry.cube_type === s.cube_type &&
+               entry.grade_transition === s.grade_transition
+    );
+    const normal_rate = normalEntry?.supply_rate ?? 0;
+    const miracle_rate = miracleEntry?.supply_rate ?? 0;
+    const normal_count = normalEntry?.count ?? 0;
+    const miracle_count = miracleEntry?.count ?? 0;
     return {
       potential_type: s.potential_type,
       cube_type: s.cube_type,
@@ -139,16 +156,27 @@ export function Dashboard() {
       grade_to,
       normal_rate,
       miracle_rate,
+      normal_count,
+      miracle_count,
     } as any;
   });
-  const statMap = buildStatMap(aggregated);
+  // Deduplicate by potential_type|cube_type|grade_from|grade_to
+  const dedupedMap = new Map<string, any>();
+  for (const stat of aggregated) {
+    const key = `${stat.potential_type}|${stat.cube_type}|${stat.grade_from}|${stat.grade_to}`;
+    if (!dedupedMap.has(key)) {
+      dedupedMap.set(key, stat);
+    }
+  }
+  const deduped = Array.from(dedupedMap.values());
+  const statMap = buildStatMap(deduped);
 
   // Calculate total stats for stat-strip
   const totalSamples = cubeUsageStats.reduce((sum, s) => sum + s.count, 0);
   const cubeTypesUsed = new Set(cubeUsageStats.map(s => s.cube_type)).size;
 
   return (
-    <div className="container theme-bg">
+    <>
       {/* Miracle Banner */}
       <div className="miracle-banner" style={{ display: isMiracleTime ? 'flex' : 'none' }}>
         <span className="dot"></span>
@@ -170,13 +198,13 @@ export function Dashboard() {
             const normalRate = stat?.normal_rate ?? 0;
             const miracleRate = stat?.miracle_rate ?? 0;
             const displayRate = isMiracleTime ? miracleRate : normalRate;
-            const sampleCount = stat?.count ?? 0;
+            const sampleCount = isMiracleTime ? (stat?.miracle_count ?? 0) : (stat?.normal_count ?? 0);
             const barWidth = Math.min(displayRate * 10, 100); // Scale for visual
 
             return (
               <div key={cubeType} className="prob-card">
                 <div className="prob-card-head">
-                  <span className={`cube-swatch ${CUBE_SWATCH_CLASSES[cubeType]}`}></span>
+                  <span className={`cube-swatch sw-${cubeType === 'neo' ? 'neo' : cubeType === 'mega' ? 'mega' : 'add'}`}></span>
                   <span className="name">{CUBE_LABELS[cubeType]}</span>
                   <span className="type-badge">{POTENTIAL_LABELS[group.potentialType]}</span>
                 </div>
@@ -199,6 +227,6 @@ export function Dashboard() {
         <div className="stat-cell"><div className="label">参加ユーザー</div><div className="value num">—</div></div>
         <div className="stat-cell"><div className="label">最終更新</div><div className="value num" style={{ fontSize: '16px' }}>—</div></div>
       </div>
-    </div>
+    </>
   );
 }

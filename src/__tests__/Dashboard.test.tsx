@@ -49,7 +49,7 @@ describe("Dashboard", () => {
       const addCard = screen.getByText(/ネオアディショナル/).closest('.prob-card');
       expect(addCard).toBeInTheDocument();
       expect(within(addCard).getByText(/ネオアディショナル/)).toBeInTheDocument();
-      expect(within(addCard).getByText(/^アディショナル$/)).toBeInTheDocument();
+      expect(within(addCard).getByText(/アディショナル潜在能力/)).toBeInTheDocument();
       expect(within(addCard).getByText(/レア/)).toBeInTheDocument();
       expect(within(addCard).getByText(/エピック/)).toBeInTheDocument();
     });
@@ -84,9 +84,9 @@ describe("Dashboard", () => {
       expect(screen.queryByText(/対応キューブ種/)).toBeInTheDocument();
     });
 
-    it("総使用個数が表示されること", () => {
+    it("総サンプル数が表示されること", () => {
       render(<Dashboard />);
-      expect(screen.queryByText(/総使用個数/)).toBeInTheDocument();
+      expect(screen.queryByText(/総サンプル数/)).toBeInTheDocument();
     });
 
     it("最終更新が表示されること", () => {
