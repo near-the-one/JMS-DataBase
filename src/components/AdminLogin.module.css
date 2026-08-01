@@ -1,0 +1,32 @@
+.formContainer {
+  background: var(--theme-card-bg);
+  border: 1px solid var(--theme-border);
+  padding: 1.5rem;
+  box-shadow: 0 2px 4px var(--theme-shadow);
+  max-width: 400px;
+  margin: auto;
+}
+
+.input {
+  width: 100%;
+  padding: 0.5rem;
+  margin-top: 0.25rem;
+  border: 1px solid var(--theme-border);
+}
+
+.input:focus {
+  outline: 2px solid var(--theme-primary);
+}
+
+.submitButton {
+  background: var(--theme-primary);
+  color: #fff;
+  border: none;
+  padding: 0.5rem 1rem;
+  margin-top: 1rem;
+  cursor: pointer;
+}
+
+.submitButton:hover {
+  background: rgba(255,102,0,0.9);
+}

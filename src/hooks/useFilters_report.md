@@ -1,0 +1,1 @@
+Implemented useFilters hook with FilterValues type, state setters, and applyFilters logic. Added unit test verifying server filter functionality. All new tests pass. Committed as feat: 追加 フィルタフック useFilters (hash afb795a).

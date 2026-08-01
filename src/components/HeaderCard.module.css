@@ -1,0 +1,10 @@
+.card {
+  background: var(--theme-primary);
+  color: #fff;
+  padding: calc(var(--spacing-unit) * 2);
+  font-family: var(--font-family-sans);
+  font-size: 1.25rem;
+  border-radius: 8px;
+  text-align: center;
+  box-shadow: 0 4px 8px var(--theme-shadow);
+}

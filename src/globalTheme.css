@@ -1,0 +1,29 @@
+/* Global theme variables for orange/white futuristic design */
+/* Font & spacing */
+:root {
+  --font-family-sans: 'Roboto', 'Noto Sans JP', sans-serif;
+  --font-size-base: 16px;
+  --spacing-unit: 0.5rem;
+}
+:root {
+  --theme-primary: #FF6600;   /* Orange accent */
+  --theme-bg: #FFFFFF;       /* Main background */
+  --theme-card-bg: #F9F9F9;   /* Card background */
+  --theme-border: #E0E0E0;   /* Light border */
+  --theme-shadow: rgba(0,0,0,0.08); /* Subtle shadow */
+}
+.theme-bg {
+  background: linear-gradient(135deg, var(--theme-primary), var(--theme-bg));
+  min-height: 100vh;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  font-family: var(--font-family-sans);
+}
+
