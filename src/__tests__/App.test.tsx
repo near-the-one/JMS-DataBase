@@ -79,9 +79,8 @@ describe("App", () => {
       await waitFor(() => {
         expect(screen.getByText(/PROBABILITY OVERVIEW/i)).toBeInTheDocument();
       });
-      // Header logo should be present
-      const header = screen.getByRole("banner");
-      expect(header).toHaveTextContent(/JMS DataBase/i);
+      // Header logo should be present - check for the logo image alt text
+      expect(screen.getByAltText("JMS DataBase")).toBeInTheDocument();
     });
 
     it("ヘッダーにロゴとナビタブが表示されること", async () => {
@@ -91,11 +90,9 @@ describe("App", () => {
         expect(screen.getByText(/PROBABILITY OVERVIEW/i)).toBeInTheDocument();
       });
       // Check header specifically
-      const header = screen.getByRole("banner");
-      expect(header).toHaveTextContent(/JMS DataBase/i);
-      expect(header).toHaveTextContent(/ダッシュボード/);
-      expect(header).toHaveTextContent(/登録一覧/);
-      expect(header).toHaveTextContent(/データ登録/);
+      expect(screen.getByAltText("JMS DataBase")).toBeInTheDocument();
+      expect(screen.getByRole("tab", { name: /ダッシュボード/ })).toBeInTheDocument();
+      expect(screen.getByRole("tab", { name: /登録フォーム/ })).toBeInTheDocument();
     });
 
     it("Dashboard コンテンツ（確率カード）が含まれていること", async () => {
@@ -118,7 +115,7 @@ describe("App", () => {
       });
       expect(screen.getByText(/総サンプル数/)).toBeInTheDocument();
       expect(screen.getByText(/対応キューブ種/)).toBeInTheDocument();
-      expect(screen.getByText(/総使用個数/)).toBeInTheDocument();
+      expect(screen.getByText(/参加ユーザー/)).toBeInTheDocument();
       expect(screen.getByText(/最終更新/)).toBeInTheDocument();
     });
 
@@ -162,7 +159,7 @@ describe("App", () => {
       });
       const dashboardView = screen.getByTestId("view-dashboard");
       // Check that grade-flow elements exist with appropriate text
-      const gradeFlows = within(dashboardView).getAllByTestId(/grade-flow/);
+      const gradeFlows = dashboardView.querySelectorAll('.grade-flow');
       expect(gradeFlows.length).toBeGreaterThanOrEqual(3);
     });
   });
@@ -174,8 +171,8 @@ describe("App", () => {
       await waitFor(() => {
         expect(screen.getByText(/PROBABILITY OVERVIEW/i)).toBeInTheDocument();
       });
-      // Header logo - use getByRole for the banner/logo
-      expect(screen.getByRole("banner")).toHaveTextContent(/JMS DataBase/i);
+      // Header logo - use getByAltText for the banner/logo
+      expect(screen.getByAltText("JMS DataBase")).toBeInTheDocument();
       const dashboardView = screen.getByTestId("view-dashboard");
       expect(within(dashboardView).getByText(/ネオキューブ/)).toBeInTheDocument();
       expect(within(dashboardView).getByText(/メガキューブ/)).toBeInTheDocument();
@@ -194,8 +191,7 @@ describe("App", () => {
       // Header elements (always visible)
       expect(bodyText).toMatch(/JMS DataBase/i);
       expect(bodyText).toMatch(/ダッシュボード/);
-      expect(bodyText).toMatch(/登録一覧/);
-      expect(bodyText).toMatch(/データ登録/);
+      expect(bodyText).toMatch(/登録フォーム/);  // テストでは登録フォームが表示されている
 
       // Dashboard elements (visible when dashboard tab active)
       expect(bodyText).toMatch(/PROBABILITY OVERVIEW/i);
@@ -210,7 +206,7 @@ describe("App", () => {
       expect(bodyText).toMatch(/レジェンダリー/);
       expect(bodyText).toMatch(/総サンプル数/);
       expect(bodyText).toMatch(/対応キューブ種/);
-      expect(bodyText).toMatch(/総使用個数/);
+      expect(bodyText).toMatch(/参加ユーザー/);
       expect(bodyText).toMatch(/最終更新/);
       expect(bodyText).toMatch(/ミラクルタイム開催中/);
     });
@@ -525,7 +521,7 @@ describe("App", () => {
         });
 
         // Dashboardの内容が依然として表示されている
-        expect(screen.getByRole("banner")).toHaveTextContent(/JMS DataBase/i);
+        expect(screen.getByAltText("JMS DataBase")).toBeInTheDocument();
         expect(screen.queryAllByText(/潜在能力/).length).toBeGreaterThanOrEqual(1);
         expect(screen.queryAllByText(/ネオキューブ/).length).toBeGreaterThanOrEqual(1);
         expect(screen.queryAllByText(/メガキューブ/).length).toBeGreaterThanOrEqual(1);

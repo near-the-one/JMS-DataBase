@@ -9,14 +9,14 @@ describe("Dashboard", () => {
       expect(screen.queryByText(/PROBABILITY OVERVIEW/i)).toBeInTheDocument();
     });
 
-    it("「種類ごとの昇級確率」という見出しが表示されること", () => {
+    it("「キューブごとの昇級確率」という見出しが表示されること", () => {
       render(<Dashboard />);
-      expect(screen.queryByText(/種類ごとの昇級確率/)).toBeInTheDocument();
+      expect(screen.queryByText(/キューブごとの昇級確率/)).toBeInTheDocument();
     });
 
     it("説明文が表示されること", () => {
       render(<Dashboard />);
-      expect(screen.queryByText(/コミュニティが登録したキューブ使用データから算出したリアルタイム集計です/)).toBeInTheDocument();
+      expect(screen.queryByText(/コミュニティが登録したキューブ使用データから算出したリアルタイム集計で、実際の確率とは異なります/)).toBeInTheDocument();
     });
   });
 
@@ -28,8 +28,11 @@ describe("Dashboard", () => {
       expect(neoCard).toBeInTheDocument();
       expect(within(neoCard).getByText(/ネオキューブ/)).toBeInTheDocument();
       expect(within(neoCard).getByText(/潜在能力/)).toBeInTheDocument();
-      expect(within(neoCard).getByText(/エピック/)).toBeInTheDocument();
-      expect(within(neoCard).getByText(/ユニーク/)).toBeInTheDocument();
+      // grade-flow には "エピック → ユニーク" と "レア → エピック" がある
+      // 要素が分割されているため、contains でチェック
+      const neoCardText = neoCard.textContent ?? "";
+      expect(neoCardText).toMatch(/エピック.*ユニーク/);
+      expect(neoCardText).toMatch(/ユニーク.*レジェンダリー/);
     });
 
     it("メガキューブのカードが表示されること", () => {
@@ -39,8 +42,9 @@ describe("Dashboard", () => {
       expect(megaCard).toBeInTheDocument();
       expect(within(megaCard).getByText(/メガキューブ/)).toBeInTheDocument();
       expect(within(megaCard).getByText(/潜在能力/)).toBeInTheDocument();
-      expect(within(megaCard).getByText(/ユニーク/)).toBeInTheDocument();
-      expect(within(megaCard).getByText(/レジェンダリー/)).toBeInTheDocument();
+      const megaCardText = megaCard.textContent ?? "";
+      expect(megaCardText).toMatch(/エピック.*ユニーク/);
+      expect(megaCardText).toMatch(/ユニーク.*レジェンダリー/);
     });
 
     it("ネオアディショナルのカードが表示されること", () => {
@@ -50,20 +54,15 @@ describe("Dashboard", () => {
       expect(addCard).toBeInTheDocument();
       expect(within(addCard).getByText(/ネオアディショナル/)).toBeInTheDocument();
       expect(within(addCard).getByText(/アディショナル潜在能力/)).toBeInTheDocument();
-      expect(within(addCard).getByText(/レア/)).toBeInTheDocument();
-      expect(within(addCard).getByText(/エピック/)).toBeInTheDocument();
+      const addCardText = addCard.textContent ?? "";
+      expect(addCardText).toMatch(/レア.*エピック/);
+      expect(addCardText).toMatch(/エピック.*ユニーク/);
     });
 
     it("各カードに昇級率（%表記）が表示されること", () => {
       render(<Dashboard />);
       const percentElements = screen.queryAllByText(/%/);
       expect(percentElements.length).toBeGreaterThanOrEqual(3);
-    });
-
-    it("各カードにサンプル数が表示されること", () => {
-      render(<Dashboard />);
-      const sampleElements = screen.queryAllByText(/サンプル数/);
-      expect(sampleElements.length).toBeGreaterThanOrEqual(3);
     });
 
     it("各カードにプログレスバーが表示されること", () => {
@@ -84,9 +83,9 @@ describe("Dashboard", () => {
       expect(screen.queryByText(/対応キューブ種/)).toBeInTheDocument();
     });
 
-    it("総サンプル数が表示されること", () => {
+    it("参加ユーザーが表示されること", () => {
       render(<Dashboard />);
-      expect(screen.queryByText(/総サンプル数/)).toBeInTheDocument();
+      expect(screen.queryByText(/参加ユーザー/)).toBeInTheDocument();
     });
 
     it("最終更新が表示されること", () => {
@@ -102,9 +101,12 @@ describe("Dashboard", () => {
   });
 
   describe("ミラクルバナー", () => {
-    it("ミラクルタイムバナーが表示されること", () => {
+    it("ミラクルタイムバナーが存在すること（初期は非表示）", () => {
       render(<Dashboard />);
-      expect(screen.queryByText(/ミラクルタイム開催中/)).toBeInTheDocument();
+      // バナー要素は存在するが display: none の状態
+      const banner = document.querySelector('.miracle-banner');
+      expect(banner).toBeInTheDocument();
+      expect(banner?.getAttribute('style')).toContain('display: none');
     });
   });
 

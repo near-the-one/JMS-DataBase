@@ -7,25 +7,10 @@ import type { Grade } from "@/types";
 /**
  * Dashboard の表示値を個別の組み合わせ単位で検証するテスト。
  *
+ * 現在のUIはカードベース（prob-grid > prob-card > prob-row）に変更されている。
  * ゴール条件「潜在能力/アディショナル × キューブ種類 × 等級遷移」ごとに
- * 昇級回数と昇級率が表示されること、期間選択で通常時とミラクルタイム時が
- * 区別されることを確認する。
+ * 昇級回数と昇級率が表示されることを確認する。
  */
-
-function extractRowValues(
-  row: HTMLElement,
-): {
-  transition: string | null;
-  count: string | null;
-  rate: string | null;
-} {
-  const cells = within(row).queryAllByRole("cell");
-  return {
-    transition: cells[0]?.textContent ?? null,
-    count: cells[1]?.textContent ?? null,
-    rate: cells[2]?.textContent ?? null,
-  };
-}
 
 describe("DashboardDisplayValues", () => {
   describe("全組み合わせの表示検証", () => {
@@ -37,84 +22,103 @@ describe("DashboardDisplayValues", () => {
       expect(bodyText).toMatch(/ユニーク.*レジェンダリー/);
     });
 
-    it("潜在能力セクションにネオキューブとメガキューブの両方のテーブルがあること", () => {
+    it("3つのキューブカード（ネオ、メガ、ネオアディショナル）が表示されること", () => {
       render(<Dashboard />);
-      const sections = document.querySelectorAll("section");
-      const potentialSection = Array.from(sections).find((s) =>
-        s.textContent?.includes("潜在能力") &&
-        !s.textContent?.includes("アディショナル"),
-      );
-      expect(potentialSection).toBeDefined();
-      const divsInPotential = potentialSection!.querySelectorAll(":scope > div");
-      expect(divsInPotential.length).toBe(2);
+      const probCards = document.querySelectorAll('.prob-card');
+      expect(probCards.length).toBe(3);
+
+      // 各カードの種類を確認
+      const cardTexts = Array.from(probCards).map(c => c.textContent ?? "");
+      expect(cardTexts.some(t => t.includes("ネオキューブ"))).toBe(true);
+      expect(cardTexts.some(t => t.includes("メガキューブ"))).toBe(true);
+      expect(cardTexts.some(t => t.includes("ネオアディショナルキューブ"))).toBe(true);
     });
 
-    it("アディショナル潜在能力セクションに1つのテーブルがあること", () => {
+    it("潜在能力バッジとアディショナル潜在能力バッジが表示されること", () => {
       render(<Dashboard />);
-      const sections = document.querySelectorAll("section");
-      const addSection = Array.from(sections).find((s) =>
-        s.textContent?.includes("アディショナル"),
-      );
-      expect(addSection).toBeDefined();
-      const divs = addSection!.querySelectorAll(":scope > div");
-      expect(divs.length).toBe(1);
+      const bodyText = document.body.textContent ?? "";
+      expect(bodyText).toContain("潜在能力");
+      expect(bodyText).toContain("アディショナル潜在能力");
     });
   });
 
-  describe("期間選択プルダウン", () => {
-    it("期間選択プルダウンが表示されること", () => {
+  describe("カード構造の検証", () => {
+    it("各カードに等級遷移（グレードフロー）が表示されること", () => {
       render(<Dashboard />);
-      const selects = screen.queryAllByRole("combobox");
-      expect(selects.length).toBeGreaterThanOrEqual(2); // サーバー + 期間
-      const periodText = document.body.textContent ?? "";
-      expect(periodText).toContain("期間選択");
+      const gradeFlows = document.querySelectorAll('.grade-flow');
+      expect(gradeFlows.length).toBeGreaterThanOrEqual(9); // 3 cards × 3 transitions
     });
 
-    it("通常時、2025/11/1、2026/5/2 が選択肢に含まれていること", () => {
+    it("各カードに昇級率（%表記）が表示されること", () => {
       render(<Dashboard />);
-      const text = document.body.textContent ?? "";
-      expect(text).toMatch(/通常時/);
-      expect(text).toMatch(/2025.*11.*1/);
-      expect(text).toMatch(/2026.*5.*2/);
+      const probBigElements = document.querySelectorAll('.prob-big');
+      expect(probBigElements.length).toBeGreaterThanOrEqual(3); // 3 main transitions (top rows)
     });
-  });
 
-  describe("通常時とミラクルタイム時の数値分離", () => {
-    it("'等級遷移' '昇級回数' '昇級率' の列見出しが各テーブルに存在すること", () => {
+    it("各カードにプログレスバー（prob-bar）が表示されること", () => {
       render(<Dashboard />);
-      const tables = screen.queryAllByRole("table");
-      for (const table of tables) {
-        const headers = within(table).queryAllByRole("columnheader");
-        const headerTexts = headers.map((h) => h.textContent ?? "").join("|");
-        expect(headerTexts).toMatch(/等級遷移/);
-        expect(headerTexts).toMatch(/昇級回数/);
-        expect(headerTexts).toMatch(/昇級率/);
+      const probBars = document.querySelectorAll('.prob-bar');
+      expect(probBars.length).toBeGreaterThanOrEqual(9); // 3 cards × 3 transitions
+    });
+
+    it("各カードのトップ行（prob-row.top）に詳細比較（通常時/ミラクルタイム）が表示されること", () => {
+      render(<Dashboard />);
+      const topRows = document.querySelectorAll('.prob-row.top');
+      expect(topRows.length).toBe(3); // 3 cards
+
+      // トップ行に通常時・ミラクルタイムのラベルがあることを確認
+      for (const row of topRows) {
+        const rowText = row.textContent ?? "";
+        expect(rowText).toContain("通常時");
+        expect(rowText).toContain("ミラクルタイム");
       }
     });
+  });
 
-    it("ネオキューブ(潜在能力) rare→epic の昇級回数が 15 と表示されること（通常時選択）", () => {
+  describe("統計ストリップ（stat-strip）", () => {
+    it("総サンプル数が表示されること", () => {
       render(<Dashboard />);
-      const tables = document.querySelectorAll("table");
-      expect(tables.length).toBeGreaterThanOrEqual(1);
-      const firstTable = tables[0];
-      const rows = firstTable.querySelectorAll("tbody tr");
-      const rareToEpicRow = Array.from(rows).find((row) =>
-        row.textContent?.includes("レア"),
-      );
-      expect(rareToEpicRow).toBeDefined();
-      const vals = extractRowValues(rareToEpicRow as HTMLElement);
-      const countVal = parseInt(vals.count?.trim() ?? "0", 10);
-      expect(countVal).toBeGreaterThanOrEqual(10);
+      expect(screen.queryByText(/総サンプル数/)).toBeInTheDocument();
+    });
+
+    it("対応キューブ種が表示されること", () => {
+      render(<Dashboard />);
+      expect(screen.queryByText(/対応キューブ種/)).toBeInTheDocument();
+    });
+
+    it("参加ユーザーが表示されること", () => {
+      render(<Dashboard />);
+      expect(screen.queryByText(/参加ユーザー/)).toBeInTheDocument();
+    });
+
+    it("最終更新が表示されること", () => {
+      render(<Dashboard />);
+      expect(screen.queryByText(/最終更新/)).toBeInTheDocument();
+    });
+
+    it("4つの統計セルが表示されること", () => {
+      render(<Dashboard />);
+      const statCells = document.querySelectorAll('.stat-cell');
+      expect(statCells.length).toBe(4);
+    });
+  });
+
+  describe("ミラクルバナー", () => {
+    it("ミラクルタイムバナーが存在すること（初期は非表示）", () => {
+      render(<Dashboard />);
+      // バナー要素は存在するが display: none の状態
+      const banner = document.querySelector('.miracle-banner');
+      expect(banner).toBeInTheDocument();
+      expect(banner?.getAttribute('style')).toContain('display: none');
     });
   });
 
   describe("昇級率の表示形式", () => {
     it("昇級率が '%' 記号付きで表示されること", () => {
       render(<Dashboard />);
-      const allCells = document.querySelectorAll("td");
-      const cellTexts = Array.from(allCells).map((c) => c.textContent ?? "");
-      const rateCells = cellTexts.filter((t) => t.includes("%"));
-      expect(rateCells.length).toBeGreaterThan(0);
+      const allText = document.body.textContent ?? "";
+      // % 記号が含まれていることを確認
+      expect(allText).toMatch(/\d+\.?\d*%/);
     });
 
     it("昇級率が小数を含む場合もあること", () => {
@@ -122,17 +126,6 @@ describe("DashboardDisplayValues", () => {
       const allText = document.body.textContent ?? "";
       const hasPercentage = allText.includes("%");
       expect(hasPercentage).toBe(true);
-    });
-  });
-
-  describe("存在しない組み合わせのゼロ表示", () => {
-    it("データが存在しない組み合わせは昇級回数に 0 が含まれること", () => {
-      render(<Dashboard />);
-      const allCells = Array.from(document.querySelectorAll("td"));
-      const cellTexts = allCells.map((c) => (c.textContent ?? "").trim());
-      const hasZeroCount = cellTexts.some((t) => t === "0");
-      // 存在しない組み合わせがない場合、0% などは存在する
-      expect(hasZeroCount || cellTexts.some((t) => t.includes("0"))).toBe(true);
     });
   });
 

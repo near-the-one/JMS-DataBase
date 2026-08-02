@@ -1,8 +1,7 @@
 import type { PotentialType, CubeType, Grade } from "@/types";
 import { GRADE_LABELS, POTENTIAL_LABELS, CUBE_LABELS } from "@/types";
-import { useState, useEffect, useMemo } from "react";
-import { supabase } from "@/infrastructure/supabaseClient";
-import { SupabaseRecordRepository } from "@/infrastructure/repository/SupabaseRecordRepository";
+import { useMemo } from "react";
+import type { CubeStatsResponse } from "@/types/api";
 
 type PotentialGroup = {
   potentialType: PotentialType;
@@ -65,99 +64,61 @@ function CompareBar({ normalRate, miracleRate }: { normalRate: number; miracleRa
   );
 }
 
-export function Dashboard() {
-  const [cubeUsageStats, setCubeUsageStats] = useState<Array<{
-    potential_type: string;
-    cube_type: string;
-    grade_transition: number;
-    isMiracle: boolean;
-    total_quantity: number;
-    count: number;
-    supply_rate: number;
-  }>>([]);
+interface DashboardProps {
+  statsResponse: CubeStatsResponse | null;
+  participantUsers: number;
+  isMiracleTime: boolean;
+  latestUpdatedAt: string | null;
+  style?: React.CSSProperties;
+}
 
-  const [isMiracleTime, setIsMiracleTime] = useState(false);
-  const [participantUsers, setParticipantUsers] = useState(0);
-  const [latestUpdate, setLatestUpdate] = useState<Date | null>(null);
+export function Dashboard({ statsResponse, participantUsers, isMiracleTime, latestUpdatedAt, style }: DashboardProps) {
 
-  useEffect(() => {
-    const repo = new SupabaseRecordRepository();
-    repo.getCubeUsageStats().then(setCubeUsageStats).catch(console.error);
-  }, []);
+  // APIレスポンスを既存UIロジックが期待する形式に変換
+  const cubeUsageStats = useMemo(() => {
+    if (!statsResponse?.stats) return [];
+    return statsResponse.stats.map(s => ({
+      potential_type: s.potential_type,
+      cube_type: s.cube_type,
+      grade_transition: s.grade_transition,
+      isMiracle: s.is_miracle,
+      total_quantity: s.total_quantity,
+      count: s.count,
+      supply_rate: s.supply_rate,
+    }));
+  }, [statsResponse]);
 
-  // 参加ユーザー数を計算（キャラ名ありの重複除外 + 無記名分で+1）
-  useEffect(() => {
-    const calculateParticipants = async () => {
-      try {
-        const repo = new SupabaseRecordRepository();
-        const records = await repo.getAll();
-
-        // キャラ名があるレコード（nullでないかつ空でない）から重複を除外
-        const namedUsers = new Set(
-          records
-            .filter(r => r.character_name !== null && r.character_name !== '')
-            .map(r => r.character_name!)
-        );
-
-        // 無記名レコードがあるかどうかをチェック
-        const hasUnnamed = records.some(r => r.character_name === null || r.character_name === '');
-
-        // 参加ユーザー数 = 名前があるユニークユーザー数 + (無記名レコードがある場合は+1)
-        const count = namedUsers.size + (hasUnnamed ? 1 : 0);
-        setParticipantUsers(count);
-      } catch (error) {
-        console.error('Failed to calculate participant users:', error);
-        setParticipantUsers(0);
-      }
-    };
-
-    calculateParticipants();
-  }, []);
-
-  // Fetch latest update timestamp from DB
-  useEffect(() => {
-    const repo = new SupabaseRecordRepository();
-    repo.getLatestTimestamp()
-      .then(ts => setLatestUpdate(new Date(ts)))
-      .catch(err => console.error('Failed to fetch latest timestamp', err));
-  }, []);
-
-  // Fetch miracle time schedules and check if currently in miracle time
-  useEffect(() => {
-    const fetchSchedules = async () => {
-      const { data, error } = await supabase.from("miracle_time_schedules").select("start,end");
-      if (error || !data) {
-        console.error('Failed to load miracle schedules', error);
-        return;
-      }
-      const schedules = (data || []) as Array<{ start: string; end: string }>;
-
-      // miracle_time_schedules の start/end は JST で格納されているので、JSTとして解釈して比較
-      const toJST = (v: string) => {
-        if (/[Zz]|[+-]\d{2}:?\d{2}$/.test(v)) return v;
-        const iso = v.replace(' ', 'T');
-        return iso.includes('T') ? `${iso}+09:00` : `${iso}T00:00:00+09:00`;
-      };
-      const now = new Date();
-      const nowJST = new Date(now.getTime() + 9 * 60 * 60 * 1000); // Convert to JST
-      const isMiracle = schedules.some(s => {
-        const start = new Date(toJST(s.start)).getTime();
-        const end = new Date(toJST(s.end)).getTime();
-        return nowJST.getTime() >= start && nowJST.getTime() <= end;
-      });
-      setIsMiracleTime(isMiracle);
-    };
-    fetchSchedules();
-  }, []);
+  // Format the latest update time to yyyy/mm/dd hh:mm (JST)
+  const formattedLatestUpdate = useMemo(() => {
+    if (!latestUpdatedAt) return null;
+    // ISO format: "2026-08-02T12:34:00+09:00" or "2026-08-02T12:34:00"
+    const match = latestUpdatedAt.match(/(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):/);
+    if (match) {
+      const [, year, month, day, hours, minutes] = match;
+      return `${year}/${month}/${day} ${hours}:${minutes}`;
+    }
+    return null;
+  }, [latestUpdatedAt]);
 
   const gradeMap: Record<number, [string, string]> = {
     1: ["rare", "epic"],
     2: ["epic", "unique"],
     3: ["unique", "legendary"],
   };
+  type StatMapEntry = {
+    potential_type: string;
+    cube_type: string;
+    grade_from: string;
+    grade_to: string;
+    normal_rate: number;
+    miracle_rate: number;
+    normal_count: number;
+    miracle_count: number;
+  };
+
   // 通常時・ミラクルタイム両方のレートを持つ単一の statMap を作成
   const statMap = useMemo(() => {
-    const map = new Map<string, any>();
+    const map = new Map<string, StatMapEntry>();
     for (const s of cubeUsageStats) {
       const [grade_from, grade_to] = gradeMap[s.grade_transition] ?? ["", ""];
       const key = `${s.potential_type}|${s.cube_type}|${grade_from}|${grade_to}`;
@@ -185,9 +146,20 @@ export function Dashboard() {
     return map;
   }, [cubeUsageStats]);
 
+  type ProbStat = {
+    potential_type: string;
+    cube_type: string;
+    grade_from: string;
+    grade_to: string;
+    normalRate: number;
+    miracleRate: number;
+    normalCount: number;
+    miracleCount: number;
+  };
+
   // prob-grid transition stats
   const probStats = useMemo(() => {
-    const stats: any[] = [];
+    const stats: ProbStat[] = [];
     for (const group of GROUPS) {
       for (const cubeType of group.cubes) {
         const fixedTransitions: [Grade, Grade][] = [
@@ -220,7 +192,7 @@ export function Dashboard() {
   const cubeTypesUsed = Object.keys(CUBE_LABELS).length;
 
   return (
-    <>
+    <div data-testid="view-dashboard" style={style}>
       {/* Miracle Banner */}
       <div className="miracle-banner" style={{ display: isMiracleTime ? 'flex' : 'none' }}>
         <span className="dot"></span>
@@ -237,7 +209,7 @@ export function Dashboard() {
       <div className="prob-grid">
         {/* 3 cards per cube type, grouped by cube */}
         {(["neo", "mega", "neo_additional"] as CubeType[]).map((cubeType) => {
-          const stats = probStats.filter((s: any) => s.cube_type === cubeType);
+          const stats = probStats.filter((s) => s.cube_type === cubeType);
           return (
             <div key={cubeType} className="prob-card">
               <div className="prob-card-head">
@@ -302,8 +274,8 @@ export function Dashboard() {
         <div className="stat-cell"><div className="label">総サンプル数</div><div className="value num">{totalSamples.toLocaleString()}</div></div>
         <div className="stat-cell"><div className="label">対応キューブ種</div><div className="value num">{cubeTypesUsed}</div></div>
         <div className="stat-cell"><div className="label">参加ユーザー</div><div className="value num">{participantUsers > 0 ? participantUsers.toLocaleString() : '—'}</div></div>
-        <div className="stat-cell"><div className="label">最終更新</div><div className="value num" style={{ fontSize: '16px' }}>{latestUpdate ? latestUpdate.toLocaleString() : '—'}</div></div>
+        <div className="stat-cell"><div className="label">最終更新</div><div className="value num" style={{ fontSize: '16px' }}>{formattedLatestUpdate ?? '—'}</div></div>
       </div>
-    </>
+    </div>
   );
 }

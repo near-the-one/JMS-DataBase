@@ -10,7 +10,12 @@ export default defineConfig({
     },
   },
   server: {
-    port: 3000,
+    proxy: {
+      "/functions": {
+        target: "https://hfvwgqubodiqftnfvceg.supabase.co",
+        changeOrigin: true,
+      },
+    },
   },
   test: {
     globals: true,

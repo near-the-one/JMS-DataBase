@@ -160,3 +160,34 @@ function createMockImage(width: number, height: number): ImageData {
     expect(form.getByRole("button", { name: /登録/ })).toBeTruthy();
   });
 };
+
+// Mock useCubeStats hook for tests
+vi.mock("@/hooks/useCubeStats", () => ({
+  useCubeStats: () => ({
+    data: {
+      stats: [
+        // All three grade transitions for each cube type to match probStats fixedTransitions
+        { potential_type: "potential", cube_type: "neo", grade_transition: 3, grade_transition_label: "ユニーク → レジェンダリー", is_miracle: false, total_quantity: 100, count: 10, supply_rate: 10 },
+        { potential_type: "potential", cube_type: "neo", grade_transition: 2, grade_transition_label: "エピック → ユニーク", is_miracle: false, total_quantity: 100, count: 10, supply_rate: 10 },
+        { potential_type: "potential", cube_type: "neo", grade_transition: 1, grade_transition_label: "レア → エピック", is_miracle: false, total_quantity: 100, count: 10, supply_rate: 10 },
+        { potential_type: "potential", cube_type: "mega", grade_transition: 3, grade_transition_label: "ユニーク → レジェンダリー", is_miracle: false, total_quantity: 100, count: 10, supply_rate: 10 },
+        { potential_type: "potential", cube_type: "mega", grade_transition: 2, grade_transition_label: "エピック → ユニーク", is_miracle: false, total_quantity: 100, count: 10, supply_rate: 10 },
+        { potential_type: "potential", cube_type: "mega", grade_transition: 1, grade_transition_label: "レア → エピック", is_miracle: false, total_quantity: 100, count: 10, supply_rate: 10 },
+        { potential_type: "additional_potential", cube_type: "neo_additional", grade_transition: 3, grade_transition_label: "ユニーク → レジェンダリー", is_miracle: false, total_quantity: 100, count: 10, supply_rate: 10 },
+        { potential_type: "additional_potential", cube_type: "neo_additional", grade_transition: 2, grade_transition_label: "エピック → ユニーク", is_miracle: false, total_quantity: 100, count: 10, supply_rate: 10 },
+        { potential_type: "additional_potential", cube_type: "neo_additional", grade_transition: 1, grade_transition_label: "レア → エピック", is_miracle: false, total_quantity: 100, count: 10, supply_rate: 10 },
+      ],
+      meta: {
+        generated_at: new Date().toISOString(),
+        data_period_start: new Date().toISOString(),
+        data_period_end: new Date().toISOString(),
+        total_records: 90,
+        cache_hint: { max_age: 300, stale_while_revalidate: 600 },
+      },
+    },
+    isLoading: false,
+    error: null,
+    lastFetched: null,
+    refetch: vi.fn(),
+  }),
+}));

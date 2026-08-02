@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback } from "react";
 import { MessageDialog } from '@/components/MessageDialog';
 import { createRecordRepository } from "@/data/recordRepository";
 import { Routes, Route, useInRouterContext } from "react-router-dom";
@@ -6,70 +6,47 @@ import { Dashboard } from "@/components/Dashboard";
 import { ManualEntryForm } from "@/components/ManualEntryForm";
 import type { ManualEntryInput } from "@/components/ManualEntryForm";
 import type { ManualEntryRecord } from "@/types";
+import { useCubeStats } from "@/hooks/useCubeStats";
 import "./common.module.css";
 
-/** Phase 2: トップページ（Supabase連携）。CRUD処理は同期的にstate更新し、repo非同期待機しない */
+/** Phase 2: トップページ（Supabase連携）。登録処理のみ対応 */
 function HomePage() {
   const repo = createRecordRepository();
-  const [records, setRecords] = useState<ManualEntryRecord[]>([]);
-  const [editId, setEditId] = useState<number | undefined>(undefined);
+  const [formResetKey, setFormResetKey] = useState(0);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogType, setDialogType] = useState<'error' | 'success'>('error');
   const [dialogMessage, setDialogMessage] = useState('');
   const [activeTab, setActiveTab] = useState<'dashboard' | 'register'>('dashboard');
-  const nextIdRef = useRef(1);
-  const [formResetKey, setFormResetKey] = useState(0);
+
+  // 統計データは親で保持し、タブ切り替えでも再フェッチしない
+  const { data: statsResponse, participantUsers, isMiracleTime } = useCubeStats({
+    intervalMs: 5 * 60 * 1000,
+    enabled: true,
+  });
 
   const showError = (msg: string) => {
     setDialogMessage(msg);
     setDialogType('error');
     setDialogOpen(true);
   };
+
   const showSuccess = (msg: string) => {
     setDialogMessage(msg);
     setDialogType('success');
     setDialogOpen(true);
   };
 
-  useEffect(() => {
-    repo.getAll().then((data) => {
-      setRecords(data);
-    }).catch((err: Error) => {
-      showError(err.message || "データの読み込みに失敗しました");
-    });
-  }, []);
-
-  const editingRecord = editId
-    ? records.find((r) => r.id === editId)
-    : undefined;
-
   const handleSubmit = useCallback(
-    (data: ManualEntryInput & { id?: number }) => {
-      const { id, ...inputData } = data;
-      if (id != null) {
-        setRecords((prev) =>
-          prev.map((r) =>
-            r.id === id ? { ...r, ...inputData } : r,
-          ),
-        );
-        setEditId(undefined);
-        repo.update(id, inputData as Omit<ManualEntryRecord, "id">)
-          .catch((err: Error) => showError(err.message));
-        showSuccess('更新が成功しました');
-        setFormResetKey((k) => k + 1);
-      } else {
-        const newRecord: ManualEntryRecord = {
-          ...inputData,
-          id: nextIdRef.current++,
-        } as ManualEntryRecord;
-        setRecords((prev) => [...prev, newRecord]);
-        repo.add(inputData as Omit<ManualEntryRecord, "id">)
-          .then(() => {
-            showSuccess('登録が成功しました');
-            setFormResetKey((k) => k + 1);
-          })
-          .catch((err: Error) => showError(err.message));
-      }
+    (data: ManualEntryInput) => {
+      repo.add({
+        ...data,
+        created_at: Date.now(),
+      } as Omit<ManualEntryRecord, "id">)
+        .then(() => {
+          showSuccess('登録が成功しました');
+          setFormResetKey((k) => k + 1);
+        })
+        .catch((err: Error) => showError(err.message));
     },
     [repo],
   );
@@ -78,7 +55,7 @@ function HomePage() {
     <>
       <MessageDialog open={dialogOpen} type={dialogType} message={dialogMessage} onClose={() => setDialogOpen(false)} />
       <header>
-        <a href="/" className="logo"><img src="/assets/site-icons/サイトロゴ2.png" alt="JMS DataBase" style={{ height: '70px' }} /></a>
+        <a href="/" className="logo"><img src="/assets/site-icons/サイトロゴ2.png" alt="JMS DataBase" style={{ height: '70px', maxHeight: '70px' }} /></a>
         <nav>
           <button
             role="tab"
@@ -99,7 +76,14 @@ function HomePage() {
         </nav>
       </header>
       <main>
-        {activeTab === 'dashboard' && <Dashboard />}
+        {/* Dashboard は常にマウントし、CSS で表示/非表示を切り替え */}
+        <Dashboard
+          statsResponse={statsResponse}
+          participantUsers={participantUsers}
+          isMiracleTime={isMiracleTime}
+          latestUpdatedAt={statsResponse?.meta?.latest_created_at ?? null}
+          style={{ display: activeTab === 'dashboard' ? 'block' : 'none' }}
+        />
         {activeTab === 'register' && (
           <>
             <div className="page-head">
@@ -111,8 +95,8 @@ function HomePage() {
               <ManualEntryForm
                 key={formResetKey}
                 onSubmit={handleSubmit}
-                initialData={editingRecord}
-                editId={editId}
+                initialData={{}}
+                editId={undefined}
               />
             </div>
           </>
