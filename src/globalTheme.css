@@ -47,7 +47,7 @@ header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 36px;
+  padding: 8px 36px;
   background: rgba(255, 255, 255, 0.88);
   backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--line);
@@ -734,6 +734,8 @@ tbody tr:hover {
 
 .field select,
 .field input {
+  transition: none;
+  min-width: 180px;
   font-family: var(--font-family-sans);
   font-size: 13px;
   padding: 11px 12px;
