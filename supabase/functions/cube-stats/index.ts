@@ -97,7 +97,7 @@ function validateParams(searchParams: URLSearchParams): Params {
     potential_type: potential_type as Params["potential_type"],
     cube_type: cube_type as Params["cube_type"],
     grade_transition: grade_transition ? parseInt(grade_transition, 10) as 1 | 2 | 3 : undefined,
-    is_miracle: is_miracle === "true" ? true : is_miracle === "false" ? false : undefined,
+    is_miracle: is_miracle === "true" ? true : (is_miracle === "false" ? false : undefined),
   };
 }
 

@@ -1,34 +1,55 @@
-# 重要な設定: Supabase Edge Function の環境変数
+# Supabase セットアップガイド
 
-上記のコード変更により、`cube-stats` Edge Function は **service_role_key** を使用して RLS をバイパスし、`miracle_time_schedules` テーブルにアクセスします。
+## 1. SQL を Supabase ダッシュボードで実行
 
-## 必要な設定手順
+`supabase/security_policies.sql` の内容をコピーし、以下で実行してください：
 
-1. Supabase ダッシュボードにアクセス
-2. 左メニューから **Edge Functions** → `cube-stats` を選択
-3. **環境変数** タブを開く
-4. 次の変数を追加:
-   - **キー**: `SUPABASE_SERVICE_ROLE_KEY`
-   - **値**: プロジェクト設定 → API から取得できる `service_role_key`（anonキーではない）
-5. **保存**してから **再デプロイ** を実行
+**Supabase ダッシュボード → SQL Editor → 新しいクエリ → 貼り付け → 実行**
 
-## なぜこれが必要か？
+これにより以下が設定されます：
+- RLS（行レベルセキュリティ）の有効化
+- `cube_usage_events`: 匿名アクセスは SELECT と INSERT のみ
+- `miracle_time_schedules`: 匿名アクセスは SELECT のみ（書き込みはダッシュボードからのみ）
+- 実際のスキーマに合わせた制約条件の設定
 
-- `security_policies.sql` で `anon` ロールの `miracle_time_schedules` テーブルへのアクセスをすべて削除しました
-- したがって、Edge Function が `anon` キーでアクセスすると `permission denied` エラーになります
-- `service_role_key` は RLS をバイパスし、データベースレベルのポリシーを無視してフルアクセスを提供します
-- これにより、ダッシュボードからのみテーブルを管理し、API からは読み取り専用で運用できます
+---
 
-## デプロイ後の動作確認
+## 2. Edge Function の環境変数設定
 
-設定とデプロイが完了したら、次のURLで動作を確認してください：
+1. **Supabase ダッシュボード → Edge Functions → `cube-stats` を選択**
+2. **「環境変数」タブを開く**
+3. 以下を追加して保存：
+
+| キー | 値 |
+|------|-----|
+| `SUPABASE_SERVICE_ROLE_KEY` | プロジェクト設定 → API の `service_role_key`（anonキーではない） |
+
+4. **保存後、「再デプロイ」ボタンをクリック**
+
+---
+
+## 3. なぜこれが必要か？
+
+| テーブル | 匿名（anonキー） | service_roleキー（Edge Function） | ダッシュボード |
+|----------|------------------|----------------------------------|----------------|
+| `cube_usage_events` | SELECT, INSERT | ALL（RLSバイパス） | ALL |
+| `miracle_time_schedules` | **SELECT のみ** | ALL（RLSバイパス） | ALL |
+
+- SQL で `anon` の書き込み権限を削除し、SELECT のみに制限しました
+- Edge Function は `service_role_key` を使って RLS をバイパスし、必要なデータにアクセスします
+- これにより「ダッシュボードからのみ管理」「外部からは参照と登録のみ」が実現されます
+
+---
+
+## 4. 動作確認
+
+デプロイ完了後、以下にアクセスして JSON が返ってくることを確認：
 
 ```
 https://jms-data-base-near-the-ones-projects.vercel.app/functions/v1/cube-stats
 ```
 
-正常に動作している場合は、以下のような JSON レスポンスが返ってきます：
-
+正常なレスポンス例：
 ```json
 {
   "stats": [...],
@@ -38,4 +59,22 @@ https://jms-data-base-near-the-ones-projects.vercel.app/functions/v1/cube-stats
 }
 ```
 
-以上で設定は完了です。セキュリティはデータベースレベル（RLS）と API レベル（Edge Function の制限）の二重構造になっています。
+---
+
+## 5. トラブルシューティング
+
+| エラー | 対処 |
+|--------|------|
+| SQL 実行でエラー | ステップごとに分けて実行（RLS有効化 → ポリシー → 制約 → 権限） |
+| Edge Function で 403/401 | `SUPABASE_SERVICE_ROLE_KEY` が正しく設定されてるか確認 |
+| Vercel で 404 | GitHub へプッシュして Vercel デプロイが完了してるか確認 |
+
+---
+
+## 6. セキュリティモデルまとめ
+
+- **データベース層**: RLS + CHECK制約で不正データを防止（最重要）
+- **API層**: Edge Function は service_role_key 使用だが、レート制限・キャッシュ・入力検証で保護
+- **クライアント層**: リポジトリ検証はUX向上と二重防御
+
+以上で「DBは管理画面からのみ操作」「外部からはSELECTと登録のINSERTのみ」という要件を満たします。

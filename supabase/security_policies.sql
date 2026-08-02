@@ -1,7 +1,7 @@
 -- ============================================================================
 -- Supabase Security Policies for CubeCounter
 -- ============================================================================
--- Run these in Supabase Dashboard > SQL Editor
+-- Run these in Supabase Dashboard > SQL Editor > SQL Editor
 -- These enforce security at the DATABASE LEVEL (primary defense)
 -- Client-side validation in SupabaseRecordRepository is defense-in-depth only
 -- ============================================================================
@@ -57,22 +57,6 @@ ALTER TABLE cube_usage_events ADD CONSTRAINT valid_cube_type
     (potential_type = 'additional_potential' AND cube_type = 'neo_additional')
   );
 
--- Valid grade_before values
-ALTER TABLE cube_usage_events ADD CONSTRAINT valid_grade_before
-  CHECK (grade_before IN ('rare', 'epic', 'unique', 'legendary'));
-
--- Valid grade_after values
-ALTER TABLE cube_usage_events ADD CONSTRAINT valid_grade_after
-  CHECK (grade_after IN ('rare', 'epic', 'unique', 'legendary'));
-
--- Valid grade transitions (adjacent forward only: rare->epic, epic->unique, unique->legendary)
-ALTER TABLE cube_usage_events ADD CONSTRAINT valid_grade_transition
-  CHECK (
-    (grade_before = 'rare' AND grade_after = 'epic') OR
-    (grade_before = 'epic' AND grade_after = 'unique') OR
-    (grade_before = 'unique' AND grade_after = 'legendary')
-  );
-
 -- Valid quantity range
 ALTER TABLE cube_usage_events ADD CONSTRAINT valid_quantity
   CHECK (quantity_used >= 1 AND quantity_used <= 9999);
@@ -81,22 +65,22 @@ ALTER TABLE cube_usage_events ADD CONSTRAINT valid_quantity
 ALTER TABLE cube_usage_events ADD CONSTRAINT valid_character_name
   CHECK (
     character_name IS NULL OR
-    (char_length(character_name) <= 50 AND character_name !~ '[<>&"\'']')
+    (char_length(character_name) <= 50 AND character_name !~ '[<>&"]')
   );
 
 -- Valid server_name
 ALTER TABLE cube_usage_events ADD CONSTRAINT valid_server_name
   CHECK (server_name IN ('かえで', 'ゆかり', 'くるみ', 'チャレンジャーズ'));
 
--- Valid equipment_parts
+-- Valid equipment_parts (column name is "part" in DB)
 ALTER TABLE cube_usage_events ADD CONSTRAINT valid_equipment_parts
   CHECK (
-    equipment_parts IS NULL OR
-    equipment_parts IN ('weapon', 'hat', 'gloves', 'shoes', 'overall', 'accessory', 'other')
+    part IS NULL OR
+    part IN ('weapon', 'hat', 'gloves', 'shoes', 'overall', 'accessory', 'other')
   );
 
 -- Valid grade_transition (1, 2, or 3)
-ALTER TABLE cube_usage_events ADD CONSTRAINT valid_grade_transition_num
+ALTER TABLE cube_usage_events ADD CONSTRAINT valid_grade_transition
   CHECK (grade_transition IN (1, 2, 3));
 
 -- ----------------------------------------------------------------------------
@@ -107,7 +91,7 @@ ALTER TABLE miracle_time_schedules ADD CONSTRAINT valid_miracle_label
   CHECK (char_length(label) <= 100);
 
 ALTER TABLE miracle_time_schedules ADD CONSTRAINT valid_miracle_time_range
-  CHECK (end_time > start_time);
+  CHECK ("end" > "start");
 
 -- ----------------------------------------------------------------------------
 -- 6. ANON KEY PERMISSIONS (run as postgres/superuser)
@@ -119,7 +103,7 @@ REVOKE ALL ON miracle_time_schedules FROM anon;
 
 -- Grant only what's needed
 GRANT SELECT, INSERT ON cube_usage_events TO anon;
-GRANT SELECT, INSERT, UPDATE, DELETE ON miracle_time_schedules TO anon;
+GRANT SELECT ON miracle_time_schedules TO anon;
 
 -- Grant sequence usage for auto-increment IDs
 GRANT USAGE ON ALL SEQUENCES IN SCHEMA public TO anon;
@@ -145,19 +129,3 @@ WHERE conrelid IN (
   'cube_usage_events'::regclass,
   'miracle_time_schedules'::regclass
 ) AND contype = 'c';
-
--- Test anon permissions
--- SET ROLE anon;
--- INSERT INTO cube_usage_events (server_name, potential_type, cube_type, grade_before, grade_after, quantity_used, character_name, timestamp, equipment_parts)
--- VALUES ('かえで', 'potential', 'neo', 'rare', 'epic', 1, 'TestUser', NOW(), 'weapon');
--- Should succeed
-
--- INSERT INTO cube_usage_events (server_name, potential_type, cube_type, grade_before, grade_after, quantity_used)
--- VALUES ('invalid', 'potential', 'neo', 'rare', 'epic', 1);
--- Should fail: valid_server_name constraint
-
--- INSERT INTO cube_usage_events (server_name, potential_type, cube_type, grade_before, grade_after, quantity_used)
--- VALUES ('かえで', 'potential', 'invalid_cube', 'rare', 'epic', 1);
--- Should fail: valid_cube_type constraint
-
--- RESET ROLE;
