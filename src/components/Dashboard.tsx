@@ -14,18 +14,6 @@ const GROUPS: PotentialGroup[] = [
   { potentialType: "additional_potential", cubes: ["neo_additional"] },
 ];
 
-/** 等級ごとの色分け（レア=青 / エピック=紫 / ユニーク=黄 / レジェンダリー=緑） */
-const GRADE_COLOR_CLASS: Record<Grade, string> = {
-  rare: "grade-rare",
-  epic: "grade-epic",
-  unique: "grade-unique",
-  legendary: "grade-legendary",
-};
-
-function GradeLabel({ grade }: { grade: Grade }) {
-  return <span className={`grade-label ${GRADE_COLOR_CLASS[grade]}`}>{GRADE_LABELS[grade]}</span>;
-}
-
 function formatRate(rate: number | undefined): string {
   if (rate === undefined || rate === 0) return "—";
   return Number(rate).toFixed(1);
@@ -66,16 +54,13 @@ function healthClass(normalRate: number, miracleRate: number): string {
  * 問題なのは2倍を"割っている"場合のみなので、その場合だけ通常時バーを警告色にする。
  * 50%地点の点線は「2倍ライン(最低基準)」の目印。
  */
-function CompareBar({ normalRate, miracleRate, showLabel }: { normalRate: number; miracleRate: number; showLabel?: boolean }) {
+function CompareBar({ normalRate, miracleRate }: { normalRate: number; miracleRate: number; showLabel?: boolean }) {
   const { normalWidth, miracleWidth } = getCompareBarWidths(normalRate, miracleRate);
   const { isBelowFloor } = getRateHealth(normalRate, miracleRate);
   return (
     <div className="prob-bar prob-bar-compare">
       <div className="prob-fill-miracle" style={{ width: `${miracleWidth}%` }}></div>
       <div className={`prob-fill-normal${isBelowFloor ? ' warn' : ''}`} style={{ width: `${normalWidth}%` }}></div>
-      <div className={`prob-bar-ideal-marker${isBelowFloor ? ' warn' : ''}`}>
-        {showLabel && <span className="prob-bar-ideal-label">2倍ライン</span>}
-      </div>
     </div>
   );
 }
@@ -244,8 +229,8 @@ export function Dashboard() {
 
       <div className="page-head">
         <div className="eyebrow">PROBABILITY OVERVIEW</div>
-        <h1>種類ごとの昇級確率</h1>
-        <p>コミュニティが登録したキューブ使用データから算出したリアルタイム集計です。</p>
+        <h1>キューブごとの昇級確率</h1>
+        <p>コミュニティが登録したキューブ使用データから算出したリアルタイム集計で、実際の確率とは異なります。</p>
       </div>
 
       {/* Prob Grid - 3 cards showing primary transition for each cube type */}
