@@ -327,16 +327,18 @@ export class SupabaseRecordRepository implements IRecordRepository {
     }
 
     // 3. 判定ヘルパー（timestamp / miracle_time_schedules は両方とも JST で格納されている）
-    const isInMiracle = (ts: string) => {
-      const time = new Date(ts).getTime();
-      // Helper to ensure schedule strings are interpreted as JST
-      const toJST = (v: string) => {
-        // If already contains timezone info, return as‑is
-        if (/[Zz]|[+-]\d{2}:?\d{2}$/.test(v)) return v;
-        // Replace space with 'T' if needed and append JST offset
-        const iso = v.replace(' ', 'T');
-        return iso.includes('T') ? `${iso}+09:00` : `${iso}T00:00:00+09:00`;
-      };
+    // Helper to ensure schedule strings are interpreted as JST
+    const toJST = (v: string | null | undefined) => {
+      if (!v) return '';
+      // If already contains timezone info, return as-is
+      if (/[Zz]|[+-]\d{2}:?\d{2}$/.test(v)) return v;
+      // Replace space with 'T' if needed and append JST offset
+      const iso = v.replace(' ', 'T');
+      return iso.includes('T') ? `${iso}+09:00` : `${iso}T00:00:00+09:00`;
+    };
+    const isInMiracle = (ts: string | null | undefined) => {
+      if (!ts) return false;
+      const time = new Date(toJST(ts)).getTime();
       return scheduleRows.some(s => {
         const start = new Date(toJST(s.start)).getTime();
         const end = new Date(toJST(s.end)).getTime();

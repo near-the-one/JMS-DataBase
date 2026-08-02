@@ -1,4 +1,4 @@
-import type { AggregatedStat, PotentialType, CubeType, Grade } from "@/types";
+import type { PotentialType, CubeType, Grade } from "@/types";
 import { GRADE_LABELS, POTENTIAL_LABELS, CUBE_LABELS } from "@/types";
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/infrastructure/supabaseClient";
@@ -13,65 +13,6 @@ const GROUPS: PotentialGroup[] = [
   { potentialType: "potential", cubes: ["neo", "mega"] },
   { potentialType: "additional_potential", cubes: ["neo_additional"] },
 ];
-
-export interface MiracleEvent {
-  id: string;
-  date: string;
-  description: string;
-  label: string;
-}
-
-export const MIRACLE_EVENTS: MiracleEvent[] = [];
-
-export const useMiracleEvents = () => {
-  const [events, setEvents] = useState<MiracleEvent[]>([]);
-  useEffect(() => {
-    const fetch = async () => {
-      const { data, error } = await supabase.from("miracle_time_schedules").select("*");
-      if (error || !data) {
-        console.error('Failed to load miracle schedules', error);
-        setEvents([{ id: "normal", date: "", description: "通常時", label: "通常時" }]);
-        return;
-      }
-      const fetched: MiracleEvent[] = data.map((row: any) => {
-        const dateObj = new Date(row.start);
-        const formatted = dateObj.toLocaleDateString('ja-JP', {
-          timeZone: 'Asia/Tokyo',
-          year: 'numeric',
-          month: '2-digit',
-          day: '2-digit',
-        }).replace(/\//g, '/');
-        return {
-          id: row.id,
-          date: formatted,
-          description: row.label,
-          label: `${formatted} ${row.label}`,
-        };
-      });
-      setEvents([{ id: "normal", date: "", description: "通常時", label: "通常時" }, ...fetched]);
-    };
-    fetch();
-  }, []);
-  return events;
-};
-
-function buildStatMap(stats: AggregatedStat[]): Map<string, AggregatedStat> {
-  const map = new Map<string, AggregatedStat>();
-  for (const s of stats) {
-    map.set(`${s.potential_type}|${s.cube_type}|${s.grade_from}|${s.grade_to}`, s);
-  }
-  return map;
-}
-
-function getStat(
-  statMap: Map<string, AggregatedStat>,
-  potentialType: PotentialType,
-  cubeType: CubeType,
-  from: Grade,
-  to: Grade,
-): AggregatedStat | undefined {
-  return statMap.get(`${potentialType}|${cubeType}|${from}|${to}`);
-}
 
 function formatRate(rate: number | undefined): string {
   if (rate === undefined || rate === 0) return "—";
@@ -145,12 +86,17 @@ useEffect(() => {
       }
       const schedules = (data || []) as Array<{ start: string; end: string }>;
 
-      // miracle_time_schedules の start/end は JST で格納されているので、現在時刻も JST に変換して比較
+      // miracle_time_schedules の start/end は JST で格納されているので、JSTとして解釈して比較
+      const toJST = (v: string) => {
+        if (/[Zz]|[+-]\d{2}:?\d{2}$/.test(v)) return v;
+        const iso = v.replace(' ', 'T');
+        return iso.includes('T') ? `${iso}+09:00` : `${iso}T00:00:00+09:00`;
+      };
       const now = new Date();
       const nowJST = new Date(now.getTime() + 9 * 60 * 60 * 1000); // Convert to JST
       const isMiracle = schedules.some(s => {
-        const start = new Date(s.start).getTime();
-        const end = new Date(s.end).getTime();
+        const start = new Date(toJST(s.start)).getTime();
+        const end = new Date(toJST(s.end)).getTime();
         return nowJST.getTime() >= start && nowJST.getTime() <= end;
       });
       setIsMiracleTime(isMiracle);
@@ -163,55 +109,35 @@ useEffect(() => {
     2: ["epic", "unique"],
     3: ["unique", "legendary"],
   };
-  // 通常時・ミラクルタイムを分離した statMap を作成
-  const { normalStatMap, miracleStatMap } = useMemo(() => {
-    const normalMap = new Map<string, any>();
-    const miracleMap = new Map<string, any>();
+  // 通常時・ミラクルタイム両方のレートを持つ単一の statMap を作成
+  const statMap = useMemo(() => {
+    const map = new Map<string, any>();
     for (const s of cubeUsageStats) {
       const [grade_from, grade_to] = gradeMap[s.grade_transition] ?? ["", ""];
-      const normalEntry = cubeUsageStats.find(
-        e => !e.isMiracle &&
-             e.potential_type === s.potential_type &&
-             e.cube_type === s.cube_type &&
-             e.grade_transition === s.grade_transition
-      );
-      const miracleEntry = cubeUsageStats.find(
-        e => e.isMiracle &&
-             e.potential_type === s.potential_type &&
-             e.cube_type === s.cube_type &&
-             e.grade_transition === s.grade_transition
-      );
       const key = `${s.potential_type}|${s.cube_type}|${grade_from}|${grade_to}`;
-      if (!normalMap.has(key) && normalEntry) {
-        normalMap.set(key, {
+      if (!map.has(key)) {
+        map.set(key, {
           potential_type: s.potential_type,
           cube_type: s.cube_type,
           grade_from,
           grade_to,
-          normal_rate: normalEntry.supply_rate ?? 0,
-          miracle_rate: miracleEntry?.supply_rate ?? 0,
-          normal_count: normalEntry.count ?? 0,
-          miracle_count: miracleEntry?.count ?? 0,
+          normal_rate: 0,
+          miracle_rate: 0,
+          normal_count: 0,
+          miracle_count: 0,
         });
       }
-      if (!miracleMap.has(key) && miracleEntry) {
-        miracleMap.set(key, {
-          potential_type: s.potential_type,
-          cube_type: s.cube_type,
-          grade_from,
-          grade_to,
-          normal_rate: normalEntry?.supply_rate ?? 0,
-          miracle_rate: miracleEntry.supply_rate ?? 0,
-          normal_count: normalEntry?.count ?? 0,
-          miracle_count: miracleEntry.count ?? 0,
-        });
+      const entry = map.get(key)!;
+      if (s.isMiracle) {
+        entry.miracle_rate = s.supply_rate;
+        entry.miracle_count = s.count;
+      } else {
+        entry.normal_rate = s.supply_rate;
+        entry.normal_count = s.count;
       }
     }
-    return { normalStatMap: normalMap, miracleStatMap: miracleMap };
+    return map;
   }, [cubeUsageStats]);
-
-  // Deduplicated statMap for backward compatibility (not used)
-  // statMap = ...
 
   // prob-grid transition stats
   const probStats = useMemo(() => {
@@ -225,23 +151,22 @@ useEffect(() => {
         ];
         for (const [fromGrade, toGrade] of fixedTransitions) {
           const key = `${group.potentialType}|${cubeType}|${fromGrade}|${toGrade}`;
-          const normalStat = normalStatMap.get(key);
-          const miracleStat = miracleStatMap.get(key);
+          const stat = statMap.get(key);
           stats.push({
             potential_type: group.potentialType,
             cube_type: cubeType,
             grade_from: fromGrade,
             grade_to: toGrade,
-            normalRate: normalStat?.normal_rate ?? 0,
-            miracleRate: miracleStat?.miracle_rate ?? 0,
-            normalCount: normalStat?.normal_count ?? 0,
-            miracleCount: miracleStat?.miracle_count ?? 0,
+            normalRate: stat?.normal_rate ?? 0,
+            miracleRate: stat?.miracle_rate ?? 0,
+            normalCount: stat?.normal_count ?? 0,
+            miracleCount: stat?.miracle_count ?? 0,
           });
         }
       }
     }
     return stats;
-  }, [normalStatMap, miracleStatMap])
+  }, [statMap])
 
   // Calculate total stats for stat-strip
   const totalSamples = cubeUsageStats.reduce((sum, s) => sum + s.total_quantity, 0);
@@ -284,7 +209,7 @@ useEffect(() => {
                   index === 0 ? (
                     <div key="top" className="prob-row top">
                       <div className="grade-flow">
-                        {GRADE_LABELS[stat.grade_from]} <span className="arrow">→</span> <b>{GRADE_LABELS[stat.grade_to]}</b>
+                        {GRADE_LABELS[stat.grade_from as Grade]} <span className="arrow">→</span> <b>{GRADE_LABELS[stat.grade_to as Grade]}</b>
                       </div>
                       <div className="prob-big">{formatRate(isMiracleTime ? stat.miracleRate : stat.normalRate)}<span className="sign">%</span></div>
                       <div className="prob-bar">
@@ -310,7 +235,7 @@ useEffect(() => {
                   ) : (
                     <div key={index} className="prob-row sub">
                       <div className="grade-flow">
-                        {GRADE_LABELS[stat.grade_from]} <span className="arrow">→</span> <b>{GRADE_LABELS[stat.grade_to]}</b>
+                        {GRADE_LABELS[stat.grade_from as Grade]} <span className="arrow">→</span> <b>{GRADE_LABELS[stat.grade_to as Grade]}</b>
                       </div>
                       <div className="mini-compare">
                         <div className="mv-item"><span className="mv-label">通常時</span><span className="mv-value">{formatRate(stat.normalRate)}%</span></div>
