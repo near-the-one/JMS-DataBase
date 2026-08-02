@@ -1,8 +1,65 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { render, screen, within } from "@testing-library/react";
 import { Dashboard } from "@/components/Dashboard";
 
+const mockStatsResponse = {
+  stats: [
+    {
+      potential_type: "potential" as const,
+      cube_type: "neo" as const,
+      grade_transition: 2 as const,
+      grade_transition_label: "エピック → ユニーク",
+      is_miracle: false,
+      total_quantity: 100,
+      count: 50,
+      supply_rate: 50,
+    },
+    {
+      potential_type: "potential" as const,
+      cube_type: "mega" as const,
+      grade_transition: 2 as const,
+      grade_transition_label: "エピック → ユニーク",
+      is_miracle: false,
+      total_quantity: 100,
+      count: 50,
+      supply_rate: 50,
+    },
+    {
+      potential_type: "additional_potential" as const,
+      cube_type: "neo_additional" as const,
+      grade_transition: 1 as const,
+      grade_transition_label: "レア → エピック",
+      is_miracle: false,
+      total_quantity: 100,
+      count: 50,
+      supply_rate: 50,
+    },
+  ],
+  meta: {
+    generated_at: "2026-08-02T12:00:00+09:00",
+    data_period_start: "2026-07-01T00:00:00+09:00",
+    data_period_end: "2026-08-01T23:59:59+09:00",
+    total_records: 10,
+    latest_created_at: "2026-08-02T12:00:00+09:00",
+    cache_hint: { max_age: 300, stale_while_revalidate: 600 },
+  },
+  participant_users: 5,
+  is_miracle_time: false,
+};
+
 describe("Dashboard", () => {
+  const renderDashboard = (overrides = {}) => {
+    return render(
+      <Dashboard
+        statsResponse={mockStatsResponse}
+        participantUsers={5}
+        isMiracleTime={false}
+        latestUpdatedAt="2026-08-02T12:00:00+09:00"
+        {...overrides}
+      />
+    );
+  };
+
   describe("ページヘッダー", () => {
     it("「PROBABILITY OVERVIEW」というアイブラウが表示されること", () => {
       render(<Dashboard />);
@@ -22,7 +79,7 @@ describe("Dashboard", () => {
 
   describe("確率カード（prob-card）", () => {
     it("ネオキューブのカードが表示されること", () => {
-      render(<Dashboard />);
+      renderDashboard();
       // ネオキューブのカードを見つけてから、その中のテキストを確認
       const neoCard = screen.getByText(/ネオキューブ/).closest('.prob-card');
       expect(neoCard).toBeInTheDocument();
@@ -36,7 +93,7 @@ describe("Dashboard", () => {
     });
 
     it("メガキューブのカードが表示されること", () => {
-      render(<Dashboard />);
+      renderDashboard();
       // メガキューブのカードを見つけてから、その中のテキストを確認
       const megaCard = screen.getByText(/メガキューブ/).closest('.prob-card');
       expect(megaCard).toBeInTheDocument();
@@ -48,7 +105,7 @@ describe("Dashboard", () => {
     });
 
     it("ネオアディショナルのカードが表示されること", () => {
-      render(<Dashboard />);
+      renderDashboard();
       // ネオアディショナルのカードを見つけてから、その中のテキストを確認
       const addCard = screen.getByText(/ネオアディショナル/).closest('.prob-card');
       expect(addCard).toBeInTheDocument();
@@ -60,13 +117,13 @@ describe("Dashboard", () => {
     });
 
     it("各カードに昇級率（%表記）が表示されること", () => {
-      render(<Dashboard />);
+      renderDashboard();
       const percentElements = screen.queryAllByText(/%/);
       expect(percentElements.length).toBeGreaterThanOrEqual(3);
     });
 
     it("各カードにプログレスバーが表示されること", () => {
-      render(<Dashboard />);
+      renderDashboard();
       const probBars = document.querySelectorAll('.prob-bar');
       expect(probBars.length).toBeGreaterThanOrEqual(3);
     });
@@ -74,27 +131,27 @@ describe("Dashboard", () => {
 
   describe("統計ストリップ（stat-strip）", () => {
     it("総サンプル数が表示されること", () => {
-      render(<Dashboard />);
+      renderDashboard();
       expect(screen.queryByText(/総サンプル数/)).toBeInTheDocument();
     });
 
     it("対応キューブ種が表示されること", () => {
-      render(<Dashboard />);
+      renderDashboard();
       expect(screen.queryByText(/対応キューブ種/)).toBeInTheDocument();
     });
 
     it("参加ユーザーが表示されること", () => {
-      render(<Dashboard />);
+      renderDashboard();
       expect(screen.queryByText(/参加ユーザー/)).toBeInTheDocument();
     });
 
     it("最終更新が表示されること", () => {
-      render(<Dashboard />);
+      renderDashboard();
       expect(screen.queryByText(/最終更新/)).toBeInTheDocument();
     });
 
     it("4つの統計セルが表示されること", () => {
-      render(<Dashboard />);
+      renderDashboard();
       const statCells = document.querySelectorAll('.stat-cell');
       expect(statCells.length).toBe(4);
     });
@@ -102,7 +159,7 @@ describe("Dashboard", () => {
 
   describe("ミラクルバナー", () => {
     it("ミラクルタイムバナーが存在すること（初期は非表示）", () => {
-      render(<Dashboard />);
+      renderDashboard();
       // バナー要素は存在するが display: none の状態
       const banner = document.querySelector('.miracle-banner');
       expect(banner).toBeInTheDocument();
