@@ -24,6 +24,7 @@ export function buildRecordFromEntry(entry: RecognizedEntry): Omit<ManualEntryRe
     // is_miracle_time field removed from ManualEntryRecord; handled via separate logic if needed
     character_name: null,
     timestamp: entry.registeredAt.valueOf(),
+    created_at: entry.registeredAt.valueOf(),
   };
 }
 

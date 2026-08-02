@@ -91,6 +91,7 @@ export function Dashboard() {
 
   const [isMiracleTime, setIsMiracleTime] = useState(false);
   const [participantUsers, setParticipantUsers] = useState(0);
+  const [latestUpdate, setLatestUpdate] = useState<Date | null>(null);
 
   useEffect(() => {
     const repo = new SupabaseRecordRepository();
@@ -126,7 +127,15 @@ export function Dashboard() {
     calculateParticipants();
   }, []);
 
-  // Fetch miracle time schedules and check if currently in miracle time
+  // Fetch latest update timestamp from DB
+useEffect(() => {
+  const repo = new SupabaseRecordRepository();
+  repo.getLatestTimestamp()
+    .then(ts => setLatestUpdate(new Date(ts)))
+    .catch(err => console.error('Failed to fetch latest timestamp', err));
+}, []);
+
+// Fetch miracle time schedules and check if currently in miracle time
   useEffect(() => {
     const fetchSchedules = async () => {
       const { data, error } = await supabase.from("miracle_time_schedules").select("start,end");
@@ -136,7 +145,7 @@ export function Dashboard() {
       }
       const schedules = (data || []) as Array<{ start: string; end: string }>;
 
-      // Check if current time (JST) falls within any schedule
+      // miracle_time_schedules の start/end は JST で格納されているので、現在時刻も JST に変換して比較
       const now = new Date();
       const nowJST = new Date(now.getTime() + 9 * 60 * 60 * 1000); // Convert to JST
       const isMiracle = schedules.some(s => {
@@ -237,10 +246,6 @@ export function Dashboard() {
               return isMiracleTime ? miracleRate : normalRate;
             });
 
-            // Find max rate for crown display
-            const allStats = Array.from(statMap.values());
-            const maxRate = Math.max(...allStats.map(s => isMiracleTime ? s.miracle_rate : s.normal_rate));
-
             return (
               <div key={cubeType} className="prob-card">
                 <div className="prob-card-head">
@@ -259,7 +264,6 @@ export function Dashboard() {
                     const normalRate = stat?.normal_rate ?? 0;
                     const miracleRate = stat?.miracle_rate ?? 0;
                     const displayRate = displayRates[index];
-                    const isTopRate = index === 0 && displayRate === maxRate && displayRate > 0;
 
                     if (index === 0) {
                       // Top row
@@ -267,7 +271,6 @@ export function Dashboard() {
                         <div key="top" className="prob-row top">
                           <div className="grade-flow">
                             {GRADE_LABELS[fromGrade]} <span className="arrow">→</span> <b>{GRADE_LABELS[toGrade]}</b>
-                            {isTopRate && <span className="crown">TOP</span>}
                           </div>
                           <div className="prob-big">{formatRate(displayRate)}<span className="sign">%</span></div>
                           <div className="prob-bar">
@@ -329,7 +332,7 @@ export function Dashboard() {
         <div className="stat-cell"><div className="label">総サンプル数</div><div className="value num">{totalSamples.toLocaleString()}</div></div>
         <div className="stat-cell"><div className="label">対応キューブ種</div><div className="value num">{cubeTypesUsed}</div></div>
         <div className="stat-cell"><div className="label">参加ユーザー</div><div className="value num">{participantUsers > 0 ? participantUsers.toLocaleString() : '—'}</div></div>
-        <div className="stat-cell"><div className="label">最終更新</div><div className="value num" style={{ fontSize: '16px' }}>—</div></div>
+        <div className="stat-cell"><div className="label">最終更新</div><div className="value num" style={{ fontSize: '16px' }}>{latestUpdate ? latestUpdate.toLocaleString() : '—'}</div></div>
       </div>
     </>
   );

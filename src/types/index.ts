@@ -104,5 +104,7 @@ export interface ManualEntryRecord {
   quantity_used: number;
   character_name: string | null;
   timestamp: number;
+  /** 登録時刻（自動生成） */
+  created_at: number;
   part?: string;
 }

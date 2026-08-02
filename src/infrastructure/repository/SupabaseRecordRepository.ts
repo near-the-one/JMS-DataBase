@@ -126,11 +126,11 @@ function validateRecord(
     }
   }
 
-  // Validate timestamp
-  if (record.timestamp !== undefined) {
-    const ts = Number(record.timestamp);
+  // Validate created_at
+  if (record.created_at !== undefined) {
+    const ts = Number(record.created_at);
     if (!Number.isInteger(ts) || ts < 0 || ts > Date.now() + 86400000) { // allow 1 day future for clock skew
-      throw new Error("Invalid timestamp");
+      throw new Error("Invalid created_at");
     }
   }
 }
@@ -143,8 +143,8 @@ export class SupabaseRecordRepository implements IRecordRepository {
   private mapDbRow(row: any): ManualEntryRecord {
     // id may be UUID string; keep as string (ManualEntryRecord.id is now string)
     const id = row.id;
-    // Convert timestamp (Postgres timestamptz) to number (ms since epoch)
-    const timestamp = row.timestamp ? new Date(row.timestamp).getTime() : Date.now();
+    // Convert created_at (Postgres created_attz) to number (ms since epoch)
+    const created_at = row.created_at ? new Date(row.created_at).getTime() : Date.now();
     // Determine grade_before and grade_after. Prefer explicit fields if present; otherwise map grade_transition (1‑3).
     let gradeBefore: Grade = "rare";
     let gradeAfter: Grade = "rare";
@@ -171,7 +171,7 @@ export class SupabaseRecordRepository implements IRecordRepository {
       grade_after: gradeAfter,
       quantity_used: row.quantity_used,
       character_name: row.character_name ?? null,
-      timestamp,
+      created_at,
       part: row.part ?? undefined,
       // optional fields not stored in DB are omitted
     } as ManualEntryRecord;
@@ -180,7 +180,7 @@ export class SupabaseRecordRepository implements IRecordRepository {
   async getAll(): Promise<ManualEntryRecord[]> {
     const { data, error } = await this.client
       .from("cube_usage_events")
-      .select("id,server_name,potential_type,cube_type,grade_transition,quantity_used,character_name,timestamp,part");
+      .select("id,server_name,potential_type,cube_type,grade_transition,quantity_used,character_name,created_at,part");
     if (error) throw error;
     // data may be null; ensure array
     const rows = (data || []) as any[];
@@ -219,8 +219,8 @@ export class SupabaseRecordRepository implements IRecordRepository {
       ...recordWithoutGrades,
       character_name: sanitizedCharacterName,
       grade_transition: gradeTransition,
-      // Convert timestamp number (ms since epoch) to ISO string for timestamptz
-      timestamp: new Date(record.timestamp).toISOString(),
+      // timestamp を JST ISO 文字列で送信（DBカラムは JST の timestamptz 前提）
+      timestamp: new Date(record.timestamp + 9 * 60 * 60 * 1000).toISOString().replace('Z', '+09:00'),
     };
 
     const { data, error } = await this.client
@@ -249,8 +249,8 @@ export class SupabaseRecordRepository implements IRecordRepository {
       ...recordWithoutGrades,
       character_name: sanitizedCharacterName,
       grade_transition: gradeTransition,
-      // Convert timestamp number (ms since epoch) to ISO string for timestamptz
-      timestamp: new Date(record.timestamp).toISOString(),
+      // timestamp を JST ISO 文字列で送信（DBカラムは JST の timestamptz 前提）
+      timestamp: new Date(record.timestamp + 9 * 60 * 60 * 1000).toISOString().replace('Z', '+09:00'),
     };
 
     const { data, error } = await this.client
@@ -269,6 +269,21 @@ export class SupabaseRecordRepository implements IRecordRepository {
       .eq("id", id);
     if (error) throw error;
     return true;
+  }
+
+  async getLatestTimestamp(): Promise<number> {
+    // Fetch all created_ats and compute the latest locally to avoid TypeScript typing issues
+    const { data, error } = await this.client
+      .from('cube_usage_events')
+      .select('created_at');
+    if (error) throw error;
+    const rows = (data || []) as any[];
+    if (rows.length === 0) return Date.now();
+    const latest = rows.reduce((max, r) => {
+      const ts = new Date(r.created_at).getTime();
+      return ts > max ? ts : max;
+    }, 0);
+    return latest;
   }
 
   async count(): Promise<number> {
@@ -295,7 +310,7 @@ export class SupabaseRecordRepository implements IRecordRepository {
     // 1. キューブ使用イベント取得
     const { data: events, error: evErr } = await this.client
       .from("cube_usage_events")
-      .select("id,server_name,potential_type,cube_type,grade_transition,quantity_used,character_name,timestamp,part");
+      .select("id,server_name,potential_type,cube_type,grade_transition,quantity_used,character_name,created_at,part");
     if (evErr) throw evErr;
     const rows = (events || []) as any[];
 
@@ -311,10 +326,9 @@ export class SupabaseRecordRepository implements IRecordRepository {
       scheduleRows = schedules;
     }
 
-    // 3. 判定ヘルパー
+    // 3. 判定ヘルパー（timestamp / miracle_time_schedules は両方とも JST で格納されている）
     const isInMiracle = (ts: string) => {
-      // Convert UTC timestamp to JST (+9 hours) before comparing with miracle schedules
-      const time = new Date(ts).getTime() + 9 * 60 * 60 * 1000;
+      const time = new Date(ts).getTime();
       return scheduleRows.some(s => {
         const start = new Date(s.start).getTime();
         const end = new Date(s.end).getTime();
