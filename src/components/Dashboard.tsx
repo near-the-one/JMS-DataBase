@@ -229,22 +229,89 @@ export function Dashboard() {
             const normalRate = stat?.normal_rate ?? 0;
             const miracleRate = stat?.miracle_rate ?? 0;
             const displayRate = isMiracleTime ? miracleRate : normalRate;
-            const sampleCount = isMiracleTime ? (stat?.miracle_count ?? 0) : (stat?.normal_count ?? 0);
-            const barWidth = Math.min(displayRate * 10, 100); // Scale for visual
+
+            // Calculate if this is the highest rate for crown display
+            const allStats = Array.from(statMap.values());
+            const maxRate = Math.max(...allStats.map(s => isMiracleTime ? s.miracle_rate : s.normal_rate));
+            const isTopRate = displayRate === maxRate && displayRate > 0;
 
             return (
               <div key={cubeType} className="prob-card">
                 <div className="prob-card-head">
-                  <span className={`cube-swatch sw-${cubeType === 'neo' ? 'neo' : cubeType === 'mega' ? 'mega' : 'add'}`}></span>
+                  <span className="cube-icon">
+                    <img
+                      src={`/assets/cube-icons/cube-${cubeType === 'neo' ? 'neo' : cubeType === 'mega' ? 'mega' : 'neo-additional'}.png`}
+                      alt={CUBE_LABELS[cubeType]}
+                    />
+                  </span>
                   <span className="name">{CUBE_LABELS[cubeType]}</span>
                   <span className="type-badge">{POTENTIAL_LABELS[group.potentialType]}</span>
                 </div>
-                <div className="grade-flow">
-                  {GRADE_LABELS[fromGrade]} <span className="arrow">→</span> <b>{GRADE_LABELS[toGrade]}</b>
+                <div className="prob-rows">
+                  {/* Top row with crown if highest rate */}
+                  <div className="prob-row top">
+                    <div className="grade-flow">
+                      {GRADE_LABELS[fromGrade as Grade]} <span className="arrow">→</span> <b>{GRADE_LABELS[toGrade as Grade]}</b>
+                      {isTopRate && <span className="crown">TOP</span>}
+                    </div>
+                    <div className="prob-big">{formatRate(displayRate)}<span className="sign">%</span></div>
+                    <div className="prob-bar">
+                      <div className="prob-bar-inner" style={{ width: `${Math.min(displayRate * 10, 100)}%` }}>
+                        <div className="prob-fill-base" style={{ width: '50%' }}></div>
+                        <div className="prob-fill-boost" style={{ width: '50%', background: isMiracleTime ? 'linear-gradient(90deg, var(--orange), var(--orange-deep))' : 'transparent' }}></div>
+                      </div>
+                    </div>
+                    <div className="rate-compare">
+                      <div className="rc-values">
+                        <div className="rc-item"><span className="rc-label">通常時</span><span className="rc-value">{formatRate(normalRate)}%</span></div>
+                        <div className="rc-item mt-col">
+                          <span className="rc-label">ミラクルタイム</span><span className="rc-value hi">{formatRate(miracleRate)}%</span><br />
+                          {(normalRate > 0 && miracleRate > 0) && (
+                            <span className={`rc-multi ${miracleRate / normalRate >= 2 ? 'match' : 'warn'}`}>
+                              実測 <span className="num">{(miracleRate / normalRate).toFixed(2)}倍</span>
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Sub rows for other grade transitions */}
+                  {[1, 2, 3].map(level => {
+                    // Skip the primary transition for this cube type
+                    const primaryTransition = PRIMARY_TRANSITIONS[cubeType];
+                    const isPrimaryLevel = (gradeMap[level]?.[0] === primaryTransition[0] && gradeMap[level]?.[1] === primaryTransition[1]);
+                    if (isPrimaryLevel) return null;
+                    const [subFrom, subTo] = gradeMap[level] ?? ["", ""];
+                    const subStat = getStat(statMap, group.potentialType, cubeType, subFrom as Grade, subTo as Grade);
+                    const subNormalRate = subStat?.normal_rate ?? 0;
+                    const subMiracleRate = subStat?.miracle_rate ?? 0;
+                    const subDisplayRate = isMiracleTime ? subMiracleRate : subNormalRate;
+
+                    return (
+                      <div key={level} className="prob-row sub">
+                        <div className="grade-flow">
+                          {GRADE_LABELS[subFrom as Grade]} <span className="arrow">→</span> <b>{GRADE_LABELS[subTo as Grade]}</b>
+                        </div>
+                        <div className="mini-compare">
+                          <div className="mv-item"><span className="mv-label">通常時</span><span className="mv-value">{formatRate(subNormalRate)}%</span></div>
+                          <div className="mv-item"><span className="mv-label">ミラクル</span><span className="mv-value hi">{formatRate(subMiracleRate)}%</span></div>
+                          {(subNormalRate > 0 && subMiracleRate > 0) && (
+                            <span className={`mv-multi ${subMiracleRate / subNormalRate >= 2 ? 'match' : 'warn'}`}>
+                              {(subMiracleRate / subNormalRate).toFixed(2)}倍
+                            </span>
+                          )}
+                        </div>
+                        <div className="prob-bar">
+                          <div className="prob-bar-inner" style={{ width: `${Math.min(subDisplayRate * 10, 100)}%` }}>
+                            <div className="prob-fill-base" style={{ width: '50%' }}></div>
+                            <div className="prob-fill-boost" style={{ width: '50%', background: isMiracleTime ? 'linear-gradient(90deg, var(--orange), var(--orange-deep))' : 'transparent' }}></div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
-                <div className="prob-big">{formatRate(displayRate)}<span className="sign">%</span></div>
-                <div className="prob-sub">サンプル数 {sampleCount.toLocaleString()}件</div>
-                <div className="prob-bar"><div className="prob-fill" style={{ width: `${barWidth}%` }}></div></div>
               </div>
             );
           })

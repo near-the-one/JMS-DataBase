@@ -217,6 +217,24 @@ main {
   border-radius: 3px;
 }
 
+.cube-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  background: var(--amber-bg);
+  box-shadow: inset 0 0 0 1px var(--line);
+  flex-shrink: 0;
+}
+
+.cube-icon img {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+}
+
 .sw-neo {
   background: #FF8A3D;
 }
@@ -242,6 +260,249 @@ main {
   background: var(--paper);
   padding: 3px 9px;
   border-radius: 999px;
+}
+
+/* Prob Rows */
+.prob-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  position: relative;
+}
+
+.prob-row .grade-flow {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--ink-soft);
+  margin-bottom: 6px;
+}
+
+.prob-row .grade-flow b {
+  color: var(--ink);
+}
+
+.prob-row .grade-flow .arrow {
+  color: var(--orange);
+}
+
+.prob-row .prob-bar {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--amber-bg);
+  overflow: hidden;
+}
+
+.prob-bar-inner {
+  height: 100%;
+  display: flex;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.prob-fill-base {
+  height: 100%;
+  background: var(--orange-glow);
+}
+
+.prob-fill-boost {
+  height: 100%;
+  background: linear-gradient(90deg, var(--orange), var(--orange-deep));
+  box-shadow: 0 0 8px rgba(255, 102, 0, 0.5);
+}
+
+.bar-legend {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 11.5px;
+  color: var(--ink-soft);
+  margin-bottom: 18px;
+}
+
+.bar-legend .lg-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.bar-legend .lg-swatch {
+  width: 12px;
+  height: 8px;
+  border-radius: 3px;
+}
+
+.bar-legend .lg-swatch.base {
+  background: var(--orange-glow);
+}
+
+.bar-legend .lg-swatch.boost {
+  background: linear-gradient(90deg, var(--orange), var(--orange-deep));
+}
+
+.prob-row.top {
+  padding-bottom: 14px;
+  border-bottom: 1px dashed var(--line);
+}
+
+.prob-row.top .grade-flow {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.prob-row.top .prob-big {
+  font-family: var(--font-family-num);
+  font-weight: 900;
+  font-size: 36px;
+  color: var(--orange-deep);
+  line-height: 1;
+}
+
+.prob-row.top .prob-big .sign {
+  font-size: 17px;
+  margin-left: 1px;
+}
+
+.prob-row.top .prob-bar {
+  height: 8px;
+  margin-top: 8px;
+}
+
+.prob-row.top .crown {
+  font-size: 10px;
+  letter-spacing: 1px;
+  font-weight: 700;
+  color: var(--orange-deep);
+  background: var(--amber-bg);
+  padding: 2px 8px;
+  border-radius: 999px;
+  margin-left: 8px;
+}
+
+.rate-compare {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--line);
+}
+
+.rc-values {
+  display: flex;
+  gap: 18px;
+}
+
+.rc-item {
+  flex: 1;
+}
+
+.rc-item.mt-col {
+  text-align: right;
+}
+
+.rc-label {
+  display: block;
+  font-size: 10px;
+  color: var(--ink-soft);
+  font-weight: 700;
+  margin-bottom: 3px;
+}
+
+.rc-value {
+  font-family: var(--font-family-num);
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--ink);
+}
+
+.rc-value.hi {
+  color: var(--orange-deep);
+  font-size: 18px;
+}
+
+.rc-multi {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 999px;
+  margin-top: 7px;
+}
+
+.rc-multi .num {
+  font-family: var(--font-family-num);
+}
+
+.rc-multi.match {
+  color: #2E7D32;
+  background: #EAF6EC;
+}
+
+.rc-multi.warn {
+  color: var(--orange-deep);
+  background: var(--amber-bg);
+}
+
+.rc-claim {
+  font-weight: 500;
+  opacity: 0.75;
+  margin-left: 2px;
+}
+
+.mini-compare {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  margin-top: 2px;
+}
+
+.mini-compare .mv-item {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+}
+
+.mini-compare .mv-label {
+  font-size: 10px;
+  color: var(--ink-soft);
+  font-weight: 700;
+}
+
+.mini-compare .mv-value {
+  font-family: var(--font-family-num);
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--ink);
+}
+
+.mini-compare .mv-value.hi {
+  color: var(--orange-deep);
+}
+
+.mini-compare .mv-multi {
+  margin-left: auto;
+  font-family: var(--font-family-num);
+  font-weight: 700;
+  font-size: 10.5px;
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+
+.mini-compare .mv-multi.match {
+  color: #2E7D32;
+  background: #EAF6EC;
+}
+
+.mini-compare .mv-multi.warn {
+  color: var(--orange-deep);
+  background: var(--amber-bg);
+}
+
+.prob-row.sub .prob-value {
+  font-family: var(--font-family-num);
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--ink);
 }
 
 .prob-big {
