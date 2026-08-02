@@ -180,7 +180,7 @@ export class SupabaseRecordRepository implements IRecordRepository {
   async getAll(): Promise<ManualEntryRecord[]> {
     const { data, error } = await this.client
       .from("cube_usage_events")
-      .select("id,server_name,potential_type,cube_type,grade_transition,quantity_used,character_name,created_at,part");
+      .select("id,timestamp,server_name,potential_type,cube_type,grade_transition,quantity_used,character_name,created_at,part");
     if (error) throw error;
     // data may be null; ensure array
     const rows = (data || []) as any[];
@@ -220,13 +220,13 @@ export class SupabaseRecordRepository implements IRecordRepository {
       character_name: sanitizedCharacterName,
       grade_transition: gradeTransition,
       // timestamp を JST ISO 文字列で送信（DBカラムは JST の timestamptz 前提）
-      timestamp: new Date(record.timestamp + 9 * 60 * 60 * 1000).toISOString().replace('Z', '+09:00'),
+      timestamp: new Date(record.timestamp).toISOString().replace('Z', '+09:00'),
     };
 
     const { data, error } = await this.client
-        .from("cube_usage_events")
-        .insert([dbRecord])
-        .single();
+      .from("cube_usage_events")
+      .insert([dbRecord])
+      .single();
     if (error) throw error;
     return data as ManualEntryRecord;
   }
@@ -250,7 +250,7 @@ export class SupabaseRecordRepository implements IRecordRepository {
       character_name: sanitizedCharacterName,
       grade_transition: gradeTransition,
       // timestamp を JST ISO 文字列で送信（DBカラムは JST の timestamptz 前提）
-      timestamp: new Date(record.timestamp + 9 * 60 * 60 * 1000).toISOString().replace('Z', '+09:00'),
+      timestamp: new Date(record.timestamp).toISOString().replace('Z', '+09:00'),
     };
 
     const { data, error } = await this.client
@@ -329,9 +329,17 @@ export class SupabaseRecordRepository implements IRecordRepository {
     // 3. 判定ヘルパー（timestamp / miracle_time_schedules は両方とも JST で格納されている）
     const isInMiracle = (ts: string) => {
       const time = new Date(ts).getTime();
+      // Helper to ensure schedule strings are interpreted as JST
+      const toJST = (v: string) => {
+        // If already contains timezone info, return as‑is
+        if (/[Zz]|[+-]\d{2}:?\d{2}$/.test(v)) return v;
+        // Replace space with 'T' if needed and append JST offset
+        const iso = v.replace(' ', 'T');
+        return iso.includes('T') ? `${iso}+09:00` : `${iso}T00:00:00+09:00`;
+      };
       return scheduleRows.some(s => {
-        const start = new Date(s.start).getTime();
-        const end = new Date(s.end).getTime();
+        const start = new Date(toJST(s.start)).getTime();
+        const end = new Date(toJST(s.end)).getTime();
         return time >= start && time <= end;
       });
     };
