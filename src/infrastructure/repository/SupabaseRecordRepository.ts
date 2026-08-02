@@ -56,71 +56,51 @@ function sanitizeInput(input: string): string {
  * Throws descriptive errors for invalid input.
  * This validation MUST be mirrored in Supabase CHECK constraints and RLS policies.
  */
-function validateRecord(
-  record: Omit<ManualEntryRecord, "id">,
-  isUpdate = false,
-): void {
+function validateRecord(record: Omit<ManualEntryRecord, "id">): void {
   // Validate server_name (optional - can be null/empty)
-  if (!isUpdate || record.server_name !== undefined) {
-    if (record.server_name && record.server_name.length > MAX_SERVER_NAME_LENGTH) {
-      throw new Error(`server_name exceeds max length of ${MAX_SERVER_NAME_LENGTH}`);
-    }
-    // Server name should be one of the known values (validated by UI, but enforce here too)
-    // Allow null/empty since it's optional
-    const validServers = ["かえで", "ゆかり", "くるみ", "チャレンジャーズ"];
-    if (record.server_name && !validServers.includes(record.server_name)) {
-      throw new Error(`Invalid server_name: ${record.server_name}`);
-    }
+  if (record.server_name && record.server_name.length > MAX_SERVER_NAME_LENGTH) {
+    throw new Error(`server_name exceeds max length of ${MAX_SERVER_NAME_LENGTH}`);
+  }
+  // Server name should be one of the known values (validated by UI, but enforce here too)
+  // Allow null/empty since it's optional
+  const validServers = ["かえで", "ゆかり", "くるみ", "チャレンジャーズ"];
+  if (record.server_name && !validServers.includes(record.server_name)) {
+    throw new Error(`Invalid server_name: ${record.server_name}`);
   }
 
   // Validate potential_type
-  if (!isUpdate || record.potential_type !== undefined) {
-    if (!["potential", "additional_potential"].includes(record.potential_type)) {
-      throw new Error(`Invalid potential_type: ${record.potential_type}`);
-    }
+  if (!["potential", "additional_potential"].includes(record.potential_type)) {
+    throw new Error(`Invalid potential_type: ${record.potential_type}`);
   }
 
   // Validate cube_type against potential_type
-  if (!isUpdate || record.cube_type !== undefined || record.potential_type !== undefined) {
-    const potentialType = record.potential_type;
-    if (!potentialType) {
-      // For partial updates without potential_type, we can't validate cube_type without knowing the current value
-      // This would require fetching the existing record first. Skip validation in this case.
-      // The database CHECK constraint will enforce integrity on insert/update.
-    } else {
-      const allowedCubes = ALLOWED_CUBE_TYPES[potentialType];
-      if (!allowedCubes || !allowedCubes.has(record.cube_type!)) {
-        throw new Error(`Invalid combination: ${potentialType} - ${record.cube_type}`);
-      }
-    }
+  const allowedCubes = ALLOWED_CUBE_TYPES[record.potential_type];
+  if (!allowedCubes || !allowedCubes.has(record.cube_type!)) {
+    throw new Error(`Invalid combination: ${record.potential_type} - ${record.cube_type}`);
   }
 
   // Validate grade_before and grade_after
-  if (!isUpdate || record.grade_before !== undefined || record.grade_after !== undefined) {
-    const gradeBefore = record.grade_before;
-    const gradeAfter = record.grade_after;
+  const gradeBefore = record.grade_before;
+  const gradeAfter = record.grade_after;
 
-    if (!GRADE_ORDER.includes(gradeBefore)) {
-      throw new Error(`Invalid grade_before: ${gradeBefore}`);
-    }
-    if (!GRADE_ORDER.includes(gradeAfter)) {
-      throw new Error(`Invalid grade_after: ${gradeAfter}`);
-    }
+  if (!GRADE_ORDER.includes(gradeBefore)) {
+    throw new Error(`Invalid grade_before: ${gradeBefore}`);
+  }
+  if (!GRADE_ORDER.includes(gradeAfter)) {
+    throw new Error(`Invalid grade_after: ${gradeAfter}`);
+  }
 
-    // Validate transition is forward and adjacent (e.g., rare->epic, epic->unique, unique->legendary)
-    const beforeIdx = GRADE_ORDER.indexOf(gradeBefore);
-    const afterIdx = GRADE_ORDER.indexOf(gradeAfter);
-    if (beforeIdx >= afterIdx || afterIdx - beforeIdx !== 1) {
-      throw new Error(`Invalid grade transition: ${gradeBefore} -> ${gradeAfter}. Must be adjacent forward transition.`);
-    }
+  // Validate transition is forward and adjacent (e.g., rare->epic, epic->unique, unique->legendary)
+  const beforeIdx = GRADE_ORDER.indexOf(gradeBefore);
+  const afterIdx = GRADE_ORDER.indexOf(gradeAfter);
+  if (beforeIdx >= afterIdx || afterIdx - beforeIdx !== 1) {
+    throw new Error(`Invalid grade transition: ${gradeBefore} -> ${gradeAfter}. Must be adjacent forward transition.`);
   }
 
   // Validate quantity_used
-  if (!isUpdate || record.quantity_used !== undefined) {
-    const qty = Number(record.quantity_used);
-    if (!Number.isInteger(qty) || qty < 1 || qty > MAX_QUANTITY) {
-      throw new Error(`quantity_used must be an integer between 1 and ${MAX_QUANTITY}`);
-    }
+  const qty = Number(record.quantity_used);
+  if (!Number.isInteger(qty) || qty < 1 || qty > MAX_QUANTITY) {
+    throw new Error(`quantity_used must be an integer between 1 and ${MAX_QUANTITY}`);
   }
 
   // Validate character_name
@@ -236,8 +216,9 @@ export class SupabaseRecordRepository implements IRecordRepository {
     // Sanitize character_name
     const sanitizedCharacterName = record.character_name ? sanitizeInput(record.character_name) : null;
 
-    // Omit grade_before and grade_after - DB only has grade_transition (1-3)
-    const { grade_before: _gradeBefore, grade_after: _gradeAfter, ...recordWithoutGrades } = record;
+    // Omit grade_before/grade_after (DBはgrade_transitionのみ) と created_at (DB側で自動生成される列。
+    // クライアントのepoch数値をそのまま送ると "date/time field value out of range" になる)
+    const { grade_before: _gradeBefore, grade_after: _gradeAfter, created_at: _createdAt, ...recordWithoutGrades } = record;
     const dbRecord = {
       ...recordWithoutGrades,
       character_name: sanitizedCharacterName,
@@ -249,37 +230,6 @@ export class SupabaseRecordRepository implements IRecordRepository {
     const { data, error } = await this.client
       .from("cube_usage_events")
       .insert([dbRecord])
-      .single();
-    if (error) throw error;
-    return data as ManualEntryRecord;
-  }
-
-  async update(id: number, record: Omit<ManualEntryRecord, "id">): Promise<ManualEntryRecord> {
-    // SERVER-SIDE VALIDATION (defense in depth - primary enforcement is DB constraints)
-    validateRecord(record, true); // true = isUpdate (allows partial)
-
-    // Convert grade_before/grade_after to grade_transition (1-3)
-    const startIdx = GRADE_ORDER.indexOf(record.grade_before);
-    const endIdx = GRADE_ORDER.indexOf(record.grade_after);
-    const gradeTransition = startIdx >= 0 && endIdx > startIdx ? startIdx + 1 : 1;
-
-    // Sanitize character_name
-    const sanitizedCharacterName = record.character_name ? sanitizeInput(record.character_name) : null;
-
-    // Omit grade_before and grade_after - DB only has grade_transition (1-3)
-    const { grade_before: _gb, grade_after: _ga, ...recordWithoutGrades } = record;
-    const dbRecord = {
-      ...recordWithoutGrades,
-      character_name: sanitizedCharacterName,
-      grade_transition: gradeTransition,
-      // timestamp カラムは tz なし。JSTの生の日時をそのまま保存する。
-      timestamp: toJstNaiveTimestamp(record.timestamp),
-    };
-
-    const { data, error } = await this.client
-      .from("cube_usage_events")
-      .update(dbRecord)
-      .eq("id", id)
       .single();
     if (error) throw error;
     return data as ManualEntryRecord;
@@ -436,15 +386,11 @@ export class SupabaseRecordRepository implements IRecordRepository {
  * CREATE POLICY "Allow anonymous insert" ON cube_usage_events
  *   FOR INSERT WITH CHECK (true); -- validation via CHECK constraints below
  *
- * -- 4. Allow anonymous UPDATE own records (if needed)
- * -- CREATE POLICY "Allow update" ON cube_usage_events
- * --   FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
- *
- * -- 5. Allow anonymous DELETE (if needed, with caution)
+ * -- 4. Allow anonymous DELETE (if needed, with caution)
  * -- CREATE POLICY "Allow delete" ON cube_usage_events
  * --   FOR DELETE USING (auth.uid() = user_id);
  *
- * -- 6. CHECK constraints for data integrity (run these in Supabase SQL Editor)
+ * -- 5. CHECK constraints for data integrity (run these in Supabase SQL Editor)
  * ALTER TABLE cube_usage_events ADD CONSTRAINT valid_potential_type
  *   CHECK (potential_type IN ('potential', 'additional_potential'));
  *
@@ -471,7 +417,7 @@ export class SupabaseRecordRepository implements IRecordRepository {
  * ALTER TABLE cube_usage_events ADD CONSTRAINT valid_equipment_parts
  *   CHECK (equipment_parts IS NULL OR equipment_parts IN ('weapon', 'hat', 'gloves', 'shoes', 'overall', 'accessory', 'other'));
  *
- * -- 7. Ensure anon key has appropriate permissions (only SELECT/INSERT on this table)
+ * -- 6. Ensure anon key has appropriate permissions (only SELECT/INSERT on this table)
  * -- REVOKE ALL ON cube_usage_events FROM anon;
  * -- GRANT SELECT, INSERT ON cube_usage_events TO anon;
  */

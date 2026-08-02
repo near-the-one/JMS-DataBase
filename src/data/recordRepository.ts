@@ -5,16 +5,12 @@ export interface IRecordRepository {
   getAll(): Promise<ManualEntryRecord[]>;
   getById(id: number): Promise<ManualEntryRecord | undefined>;
   add(record: Omit<ManualEntryRecord, "id">): Promise<ManualEntryRecord>;
-  update(
-    id: number,
-    record: Partial<Omit<ManualEntryRecord, "id">>,
-  ): Promise<ManualEntryRecord>;
   delete(id: number): Promise<boolean>;
   count(): Promise<number>;
 }
 
 export function createRecordRepository(): IRecordRepository {
-  // 一時的にインメモリ実装を使用（Supabase 未設定のため）
+  // Supabase実装を返す（InMemoryRecordRepositoryはローカル開発/テスト用に別途残置）
   return new SupabaseRecordRepository();
 }
 
@@ -37,18 +33,6 @@ export class InMemoryRecordRepository implements IRecordRepository {
     };
     this.records.push(record);
     return record;
-  }
-
-  async update(
-    id: number,
-    input: Partial<Omit<ManualEntryRecord, "id">>,
-  ): Promise<ManualEntryRecord> {
-    const idx = this.records.findIndex((r) => r.id === id);
-    if (idx === -1) throw new Error(`Record not found: id=${id}`);
-    const existing = this.records[idx];
-    const merged = { ...existing, ...input } as ManualEntryRecord;
-    this.records[idx] = merged;
-    return merged;
   }
 
   async delete(id: number): Promise<boolean> {

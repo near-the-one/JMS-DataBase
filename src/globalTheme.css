@@ -1026,6 +1026,37 @@ footer {
   border-top: 1px solid var(--line);
 }
 
+.footer-inner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.footer-x-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ink-soft);
+  font-weight: 700;
+}
+
+.footer-x-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  background: #000000;
+  flex-shrink: 0;
+}
+
+.footer-x-link:hover {
+  color: var(--orange-deep);
+}
+
 /* Error message styles for forms */
 .error {
   color: var(--orange-deep);

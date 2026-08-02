@@ -1,29 +1,48 @@
 <!doctype html>
 <html lang="ja">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>JMS DataBase</title>
-    <link rel="icon" href="/assets/site-icons/サイトロゴ_文字なし.png" type="image/png" />
-    <!-- Security Headers (via HTTP headers in production, meta tags are fallback) -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval' 'unsafe-inline' https://www.googletagmanager.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://www.google-analytics.com https://region1.google-analytics.com; base-uri 'self'; form-action 'self';" />
-    <meta http-equiv="X-Content-Type-Options" content="nosniff" />
-    <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin" />
-    <meta http-equiv="Permissions-Policy" content="camera=(), microphone=(), geolocation=(), payment=()" />
-    <!-- Google tag (gtag.js) -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=G-F1RG8NFVDP"></script>
-    <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-      gtag('config', 'G-F1RG8NFVDP');
-    </script>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Noto+Sans+JP:wght@400;500;700;900&display=swap" rel="stylesheet" />
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JMS DataBase</title>
+  <link rel="icon" href="/assets/site-icons/サイトロゴ_文字なし.png" type="image/png" />
+  <!-- Open Graph / Twitter Card (リンク共有時のプレビュー画像・タイトル・説明文) -->
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="JMS DataBase" />
+  <meta property="og:title" content="JMS DataBase" />
+  <meta property="og:description" content="コミュニティのキューブ使用データから算出した昇級確率をリアルタイムで公開する非公式データベースです。" />
+  <meta property="og:url" content="https://jms-data-base.vercel.app/" />
+  <meta property="og:image" content="https://jms-data-base.vercel.app/assets/site-icons/ogp-image.png" />
+  <meta property="og:image:width" content="1254" />
+  <meta property="og:image:height" content="1254" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="JMS DataBase" />
+  <meta name="twitter:description" content="コミュニティのキューブ使用データから算出した昇級確率をリアルタイムで公開する非公式データベースです。" />
+  <meta name="twitter:image" content="https://jms-data-base.vercel.app/assets/site-icons/ogp-image.png" />
+  <!-- Security Headers (via HTTP headers in production, meta tags are fallback) -->
+  <meta http-equiv="Content-Security-Policy"
+    content="default-src 'self'; script-src 'self' 'unsafe-eval' 'wasm-unsafe-eval' 'unsafe-inline' https://www.googletagmanager.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://www.google-analytics.com https://region1.google-analytics.com; base-uri 'self'; form-action 'self';" />
+  <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+  <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin" />
+  <meta http-equiv="Permissions-Policy" content="camera=(), microphone=(), geolocation=(), payment=()" />
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-F1RG8NFVDP"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag() { dataLayer.push(arguments); }
+    gtag('js', new Date());
+    gtag('config', 'G-F1RG8NFVDP');
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Noto+Sans+JP:wght@400;500;700;900&display=swap"
+    rel="stylesheet" />
+</head>
+
+<body>
+  <div id="root"></div>
+  <script type="module" src="/src/main.tsx"></script>
+</body>
+
 </html>
