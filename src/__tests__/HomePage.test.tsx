@@ -45,7 +45,7 @@ describe("Phase1: HomePage 構成検証", () => {
       );
       // Check specifically in header for logo
       const header = screen.getByRole("banner");
-      expect(header).toHaveTextContent(/Maple CUBE/i);
+      expect(header).toHaveTextContent(/JMS DataBase/i);
       expect(header).toHaveTextContent(/ダッシュボード/);
       expect(header).toHaveTextContent(/登録一覧/);
       expect(header).toHaveTextContent(/データ登録/);

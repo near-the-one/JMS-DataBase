@@ -49,7 +49,7 @@ describe("Phase1: ルーティング統合", () => {
         </MemoryRouter>,
       );
       // Use getByRole for banner and getByText for dashboard title
-      expect(screen.getByRole("banner")).toHaveTextContent(/Maple CUBE/i);
+      expect(screen.getByRole("banner")).toHaveTextContent(/JMS DataBase/i);
       expect(screen.getByText(/PROBABILITY OVERVIEW/i)).toBeInTheDocument();
     });
 

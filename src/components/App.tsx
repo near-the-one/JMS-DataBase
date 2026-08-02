@@ -78,7 +78,7 @@ function HomePage() {
     <>
       <MessageDialog open={dialogOpen} type={dialogType} message={dialogMessage} onClose={() => setDialogOpen(false)} />
       <header>
-        <div className="logo"><span className="logo-dot"></span>Maple CUBE</div>
+        <a href="/" className="logo"><img src="/assets/site-icons/サイトロゴ2.png" alt="JMS DataBase" style={{ height: '52px' }} /></a>
         <nav>
           <button
             role="tab"
@@ -118,7 +118,7 @@ function HomePage() {
           </>
         )}
       </main>
-      <footer>Maple CUBE — コミュニティ計測による非公式データベース</footer>
+      <footer>JMS DataBase — コミュニティ計測による非公式データベース</footer>
     </>
   );
 }

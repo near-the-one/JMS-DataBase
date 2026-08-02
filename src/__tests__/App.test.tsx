@@ -81,7 +81,7 @@ describe("App", () => {
       });
       // Header logo should be present
       const header = screen.getByRole("banner");
-      expect(header).toHaveTextContent(/Maple CUBE/i);
+      expect(header).toHaveTextContent(/JMS DataBase/i);
     });
 
     it("ヘッダーにロゴとナビタブが表示されること", async () => {
@@ -92,7 +92,7 @@ describe("App", () => {
       });
       // Check header specifically
       const header = screen.getByRole("banner");
-      expect(header).toHaveTextContent(/Maple CUBE/i);
+      expect(header).toHaveTextContent(/JMS DataBase/i);
       expect(header).toHaveTextContent(/ダッシュボード/);
       expect(header).toHaveTextContent(/登録一覧/);
       expect(header).toHaveTextContent(/データ登録/);
@@ -175,7 +175,7 @@ describe("App", () => {
         expect(screen.getByText(/PROBABILITY OVERVIEW/i)).toBeInTheDocument();
       });
       // Header logo - use getByRole for the banner/logo
-      expect(screen.getByRole("banner")).toHaveTextContent(/Maple CUBE/i);
+      expect(screen.getByRole("banner")).toHaveTextContent(/JMS DataBase/i);
       const dashboardView = screen.getByTestId("view-dashboard");
       expect(within(dashboardView).getByText(/ネオキューブ/)).toBeInTheDocument();
       expect(within(dashboardView).getByText(/メガキューブ/)).toBeInTheDocument();
@@ -192,7 +192,7 @@ describe("App", () => {
       const bodyText = document.body.textContent ?? "";
 
       // Header elements (always visible)
-      expect(bodyText).toMatch(/Maple CUBE/i);
+      expect(bodyText).toMatch(/JMS DataBase/i);
       expect(bodyText).toMatch(/ダッシュボード/);
       expect(bodyText).toMatch(/登録一覧/);
       expect(bodyText).toMatch(/データ登録/);
@@ -525,7 +525,7 @@ describe("App", () => {
         });
 
         // Dashboardの内容が依然として表示されている
-        expect(screen.getByRole("banner")).toHaveTextContent(/Maple CUBE/i);
+        expect(screen.getByRole("banner")).toHaveTextContent(/JMS DataBase/i);
         expect(screen.queryAllByText(/潜在能力/).length).toBeGreaterThanOrEqual(1);
         expect(screen.queryAllByText(/ネオキューブ/).length).toBeGreaterThanOrEqual(1);
         expect(screen.queryAllByText(/メガキューブ/).length).toBeGreaterThanOrEqual(1);

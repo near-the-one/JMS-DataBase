@@ -4,12 +4,6 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/infrastructure/supabaseClient";
 import { SupabaseRecordRepository } from "@/infrastructure/repository/SupabaseRecordRepository";
 
-const PRIMARY_TRANSITIONS: Record<CubeType, [Grade, Grade]> = {
-  neo: ["epic", "unique"],
-  mega: ["unique", "legendary"],
-  neo_additional: ["rare", "epic"],
-};
-
 type PotentialGroup = {
   potentialType: PotentialType;
   cubes: CubeType[];
@@ -224,16 +218,28 @@ export function Dashboard() {
       <div className="prob-grid">
         {GROUPS.flatMap((group) =>
           group.cubes.map((cubeType) => {
-            const [fromGrade, toGrade] = PRIMARY_TRANSITIONS[cubeType];
-            const stat = getStat(statMap, group.potentialType, cubeType, fromGrade, toGrade);
-            const normalRate = stat?.normal_rate ?? 0;
-            const miracleRate = stat?.miracle_rate ?? 0;
-            const displayRate = isMiracleTime ? miracleRate : normalRate;
+            // Fixed order for all cubes: unique→legendary (top), epic→unique (sub1), rare→epic (sub2)
+            const fixedTransitions: [Grade, Grade][] = [
+              ["unique", "legendary"], // Top row
+              ["epic", "unique"],      // Sub row 1
+              ["rare", "epic"],        // Sub row 2
+            ];
 
-            // Calculate if this is the highest rate for crown display
+            // Get stats for all three transitions
+            const stats = fixedTransitions.map(([fromGrade, toGrade]) =>
+              getStat(statMap, group.potentialType, cubeType, fromGrade, toGrade)
+            );
+
+            // Calculate display rates for all transitions
+            const displayRates = stats.map(stat => {
+              const normalRate = stat?.normal_rate ?? 0;
+              const miracleRate = stat?.miracle_rate ?? 0;
+              return isMiracleTime ? miracleRate : normalRate;
+            });
+
+            // Find max rate for crown display
             const allStats = Array.from(statMap.values());
             const maxRate = Math.max(...allStats.map(s => isMiracleTime ? s.miracle_rate : s.normal_rate));
-            const isTopRate = displayRate === maxRate && displayRate > 0;
 
             return (
               <div key={cubeType} className="prob-card">
@@ -248,68 +254,68 @@ export function Dashboard() {
                   <span className="type-badge">{POTENTIAL_LABELS[group.potentialType]}</span>
                 </div>
                 <div className="prob-rows">
-                  {/* Top row with crown if highest rate */}
-                  <div className="prob-row top">
-                    <div className="grade-flow">
-                      {GRADE_LABELS[fromGrade as Grade]} <span className="arrow">→</span> <b>{GRADE_LABELS[toGrade as Grade]}</b>
-                      {isTopRate && <span className="crown">TOP</span>}
-                    </div>
-                    <div className="prob-big">{formatRate(displayRate)}<span className="sign">%</span></div>
-                    <div className="prob-bar">
-                      <div className="prob-bar-inner" style={{ width: `${Math.min(displayRate * 10, 100)}%` }}>
-                        <div className="prob-fill-base" style={{ width: '50%' }}></div>
-                        <div className="prob-fill-boost" style={{ width: '50%', background: isMiracleTime ? 'linear-gradient(90deg, var(--orange), var(--orange-deep))' : 'transparent' }}></div>
-                      </div>
-                    </div>
-                    <div className="rate-compare">
-                      <div className="rc-values">
-                        <div className="rc-item"><span className="rc-label">通常時</span><span className="rc-value">{formatRate(normalRate)}%</span></div>
-                        <div className="rc-item mt-col">
-                          <span className="rc-label">ミラクルタイム</span><span className="rc-value hi">{formatRate(miracleRate)}%</span><br />
-                          {(normalRate > 0 && miracleRate > 0) && (
-                            <span className={`rc-multi ${miracleRate / normalRate >= 2 ? 'match' : 'warn'}`}>
-                              実測 <span className="num">{(miracleRate / normalRate).toFixed(2)}倍</span>
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                  {fixedTransitions.map(([fromGrade, toGrade], index) => {
+                    const stat = stats[index];
+                    const normalRate = stat?.normal_rate ?? 0;
+                    const miracleRate = stat?.miracle_rate ?? 0;
+                    const displayRate = displayRates[index];
+                    const isTopRate = index === 0 && displayRate === maxRate && displayRate > 0;
 
-                  {/* Sub rows for other grade transitions */}
-                  {[1, 2, 3].map(level => {
-                    // Skip the primary transition for this cube type
-                    const primaryTransition = PRIMARY_TRANSITIONS[cubeType];
-                    const isPrimaryLevel = (gradeMap[level]?.[0] === primaryTransition[0] && gradeMap[level]?.[1] === primaryTransition[1]);
-                    if (isPrimaryLevel) return null;
-                    const [subFrom, subTo] = gradeMap[level] ?? ["", ""];
-                    const subStat = getStat(statMap, group.potentialType, cubeType, subFrom as Grade, subTo as Grade);
-                    const subNormalRate = subStat?.normal_rate ?? 0;
-                    const subMiracleRate = subStat?.miracle_rate ?? 0;
-                    const subDisplayRate = isMiracleTime ? subMiracleRate : subNormalRate;
-
-                    return (
-                      <div key={level} className="prob-row sub">
-                        <div className="grade-flow">
-                          {GRADE_LABELS[subFrom as Grade]} <span className="arrow">→</span> <b>{GRADE_LABELS[subTo as Grade]}</b>
-                        </div>
-                        <div className="mini-compare">
-                          <div className="mv-item"><span className="mv-label">通常時</span><span className="mv-value">{formatRate(subNormalRate)}%</span></div>
-                          <div className="mv-item"><span className="mv-label">ミラクル</span><span className="mv-value hi">{formatRate(subMiracleRate)}%</span></div>
-                          {(subNormalRate > 0 && subMiracleRate > 0) && (
-                            <span className={`mv-multi ${subMiracleRate / subNormalRate >= 2 ? 'match' : 'warn'}`}>
-                              {(subMiracleRate / subNormalRate).toFixed(2)}倍
-                            </span>
-                          )}
-                        </div>
-                        <div className="prob-bar">
-                          <div className="prob-bar-inner" style={{ width: `${Math.min(subDisplayRate * 10, 100)}%` }}>
-                            <div className="prob-fill-base" style={{ width: '50%' }}></div>
-                            <div className="prob-fill-boost" style={{ width: '50%', background: isMiracleTime ? 'linear-gradient(90deg, var(--orange), var(--orange-deep))' : 'transparent' }}></div>
+                    if (index === 0) {
+                      // Top row
+                      return (
+                        <div key="top" className="prob-row top">
+                          <div className="grade-flow">
+                            {GRADE_LABELS[fromGrade]} <span className="arrow">→</span> <b>{GRADE_LABELS[toGrade]}</b>
+                            {isTopRate && <span className="crown">TOP</span>}
+                          </div>
+                          <div className="prob-big">{formatRate(displayRate)}<span className="sign">%</span></div>
+                          <div className="prob-bar">
+                            <div className="prob-bar-inner" style={{ width: `${Math.min(displayRate * 10, 100)}%` }}>
+                              <div className="prob-fill-base" style={{ width: '50%' }}></div>
+                              <div className="prob-fill-boost" style={{ width: '50%', background: isMiracleTime ? 'linear-gradient(90deg, var(--orange), var(--orange-deep))' : 'transparent' }}></div>
+                            </div>
+                          </div>
+                          <div className="rate-compare">
+                            <div className="rc-values">
+                              <div className="rc-item"><span className="rc-label">通常時</span><span className="rc-value">{formatRate(normalRate)}%</span></div>
+                              <div className="rc-item mt-col">
+                                <span className="rc-label">ミラクルタイム</span><span className="rc-value hi">{formatRate(miracleRate)}%</span><br />
+                                {(normalRate > 0 && miracleRate > 0) && (
+                                  <span className={`rc-multi ${miracleRate / normalRate >= 2 ? 'match' : 'warn'}`}>
+                                    実測 <span className="num">{(miracleRate / normalRate).toFixed(2)}倍</span>
+                                  </span>
+                                )}
+                              </div>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    );
+                      );
+                    } else {
+                      // Sub rows
+                      return (
+                        <div key={index} className="prob-row sub">
+                          <div className="grade-flow">
+                            {GRADE_LABELS[fromGrade]} <span className="arrow">→</span> <b>{GRADE_LABELS[toGrade]}</b>
+                          </div>
+                          <div className="mini-compare">
+                            <div className="mv-item"><span className="mv-label">通常時</span><span className="mv-value">{formatRate(normalRate)}%</span></div>
+                            <div className="mv-item"><span className="mv-label">ミラクル</span><span className="mv-value hi">{formatRate(miracleRate)}%</span></div>
+                            {(normalRate > 0 && miracleRate > 0) && (
+                              <span className={`mv-multi ${miracleRate / normalRate >= 2 ? 'match' : 'warn'}`}>
+                                {(miracleRate / normalRate).toFixed(2)}倍
+                              </span>
+                            )}
+                          </div>
+                          <div className="prob-bar">
+                            <div className="prob-bar-inner" style={{ width: `${Math.min(displayRate * 10, 100)}%` }}>
+                              <div className="prob-fill-base" style={{ width: '50%' }}></div>
+                              <div className="prob-fill-boost" style={{ width: '50%', background: isMiracleTime ? 'linear-gradient(90deg, var(--orange), var(--orange-deep))' : 'transparent' }}></div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    }
                   })}
                 </div>
               </div>
