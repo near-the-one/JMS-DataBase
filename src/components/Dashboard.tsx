@@ -1,6 +1,6 @@
 import type { AggregatedStat, PotentialType, CubeType, Grade } from "@/types";
 import { GRADE_LABELS, POTENTIAL_LABELS, CUBE_LABELS } from "@/types";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/infrastructure/supabaseClient";
 import { SupabaseRecordRepository } from "@/infrastructure/repository/SupabaseRecordRepository";
 
@@ -163,46 +163,85 @@ useEffect(() => {
     2: ["epic", "unique"],
     3: ["unique", "legendary"],
   };
-  const aggregated = cubeUsageStats.map((s) => {
-    const [grade_from, grade_to] = gradeMap[s.grade_transition] ?? ["", ""];
-    // Since getCubeUsageStats separates by isMiracle, we need to find normal and miracle entries
-    const normalEntry = cubeUsageStats.find(
-      entry => !entry.isMiracle &&
-               entry.potential_type === s.potential_type &&
-               entry.cube_type === s.cube_type &&
-               entry.grade_transition === s.grade_transition
-    );
-    const miracleEntry = cubeUsageStats.find(
-      entry => entry.isMiracle &&
-               entry.potential_type === s.potential_type &&
-               entry.cube_type === s.cube_type &&
-               entry.grade_transition === s.grade_transition
-    );
-    const normal_rate = normalEntry?.supply_rate ?? 0;
-    const miracle_rate = miracleEntry?.supply_rate ?? 0;
-    const normal_count = normalEntry?.count ?? 0;
-    const miracle_count = miracleEntry?.count ?? 0;
-    return {
-      potential_type: s.potential_type,
-      cube_type: s.cube_type,
-      grade_from,
-      grade_to,
-      normal_rate,
-      miracle_rate,
-      normal_count,
-      miracle_count,
-    } as any;
-  });
-  // Deduplicate by potential_type|cube_type|grade_from|grade_to
-  const dedupedMap = new Map<string, any>();
-  for (const stat of aggregated) {
-    const key = `${stat.potential_type}|${stat.cube_type}|${stat.grade_from}|${stat.grade_to}`;
-    if (!dedupedMap.has(key)) {
-      dedupedMap.set(key, stat);
+  // 通常時・ミラクルタイムを分離した statMap を作成
+  const { normalStatMap, miracleStatMap } = useMemo(() => {
+    const normalMap = new Map<string, any>();
+    const miracleMap = new Map<string, any>();
+    for (const s of cubeUsageStats) {
+      const [grade_from, grade_to] = gradeMap[s.grade_transition] ?? ["", ""];
+      const normalEntry = cubeUsageStats.find(
+        e => !e.isMiracle &&
+             e.potential_type === s.potential_type &&
+             e.cube_type === s.cube_type &&
+             e.grade_transition === s.grade_transition
+      );
+      const miracleEntry = cubeUsageStats.find(
+        e => e.isMiracle &&
+             e.potential_type === s.potential_type &&
+             e.cube_type === s.cube_type &&
+             e.grade_transition === s.grade_transition
+      );
+      const key = `${s.potential_type}|${s.cube_type}|${grade_from}|${grade_to}`;
+      if (!normalMap.has(key) && normalEntry) {
+        normalMap.set(key, {
+          potential_type: s.potential_type,
+          cube_type: s.cube_type,
+          grade_from,
+          grade_to,
+          normal_rate: normalEntry.supply_rate ?? 0,
+          miracle_rate: miracleEntry?.supply_rate ?? 0,
+          normal_count: normalEntry.count ?? 0,
+          miracle_count: miracleEntry?.count ?? 0,
+        });
+      }
+      if (!miracleMap.has(key) && miracleEntry) {
+        miracleMap.set(key, {
+          potential_type: s.potential_type,
+          cube_type: s.cube_type,
+          grade_from,
+          grade_to,
+          normal_rate: normalEntry?.supply_rate ?? 0,
+          miracle_rate: miracleEntry.supply_rate ?? 0,
+          normal_count: normalEntry?.count ?? 0,
+          miracle_count: miracleEntry.count ?? 0,
+        });
+      }
     }
-  }
-  const deduped = Array.from(dedupedMap.values());
-  const statMap = buildStatMap(deduped);
+    return { normalStatMap: normalMap, miracleStatMap: miracleMap };
+  }, [cubeUsageStats]);
+
+  // Deduplicated statMap for backward compatibility (not used)
+  // statMap = ...
+
+  // prob-grid transition stats
+  const probStats = useMemo(() => {
+    const stats: any[] = [];
+    for (const group of GROUPS) {
+      for (const cubeType of group.cubes) {
+        const fixedTransitions: [Grade, Grade][] = [
+          ["unique", "legendary"],
+          ["epic", "unique"],
+          ["rare", "epic"],
+        ];
+        for (const [fromGrade, toGrade] of fixedTransitions) {
+          const key = `${group.potentialType}|${cubeType}|${fromGrade}|${toGrade}`;
+          const normalStat = normalStatMap.get(key);
+          const miracleStat = miracleStatMap.get(key);
+          stats.push({
+            potential_type: group.potentialType,
+            cube_type: cubeType,
+            grade_from: fromGrade,
+            grade_to: toGrade,
+            normalRate: normalStat?.normal_rate ?? 0,
+            miracleRate: miracleStat?.miracle_rate ?? 0,
+            normalCount: normalStat?.normal_count ?? 0,
+            miracleCount: miracleStat?.miracle_count ?? 0,
+          });
+        }
+      }
+    }
+    return stats;
+  }, [normalStatMap, miracleStatMap])
 
   // Calculate total stats for stat-strip
   const totalSamples = cubeUsageStats.reduce((sum, s) => sum + s.total_quantity, 0);
@@ -225,106 +264,76 @@ useEffect(() => {
 
       {/* Prob Grid - 3 cards showing primary transition for each cube type */}
       <div className="prob-grid">
-        {GROUPS.flatMap((group) =>
-          group.cubes.map((cubeType) => {
-            // Fixed order for all cubes: unique→legendary (top), epic→unique (sub1), rare→epic (sub2)
-            const fixedTransitions: [Grade, Grade][] = [
-              ["unique", "legendary"], // Top row
-              ["epic", "unique"],      // Sub row 1
-              ["rare", "epic"],        // Sub row 2
-            ];
-
-            // Get stats for all three transitions
-            const stats = fixedTransitions.map(([fromGrade, toGrade]) =>
-              getStat(statMap, group.potentialType, cubeType, fromGrade, toGrade)
-            );
-
-            // Calculate display rates for all transitions
-            const displayRates = stats.map(stat => {
-              const normalRate = stat?.normal_rate ?? 0;
-              const miracleRate = stat?.miracle_rate ?? 0;
-              return isMiracleTime ? miracleRate : normalRate;
-            });
-
-            return (
-              <div key={cubeType} className="prob-card">
-                <div className="prob-card-head">
-                  <span className="cube-icon">
-                    <img
-                      src={`/assets/cube-icons/cube-${cubeType === 'neo' ? 'neo' : cubeType === 'mega' ? 'mega' : 'neo-additional'}.png`}
-                      alt={CUBE_LABELS[cubeType]}
-                    />
-                  </span>
-                  <span className="name">{CUBE_LABELS[cubeType]}</span>
-                  <span className="type-badge">{POTENTIAL_LABELS[group.potentialType]}</span>
-                </div>
-                <div className="prob-rows">
-                  {fixedTransitions.map(([fromGrade, toGrade], index) => {
-                    const stat = stats[index];
-                    const normalRate = stat?.normal_rate ?? 0;
-                    const miracleRate = stat?.miracle_rate ?? 0;
-                    const displayRate = displayRates[index];
-
-                    if (index === 0) {
-                      // Top row
-                      return (
-                        <div key="top" className="prob-row top">
-                          <div className="grade-flow">
-                            {GRADE_LABELS[fromGrade]} <span className="arrow">→</span> <b>{GRADE_LABELS[toGrade]}</b>
-                          </div>
-                          <div className="prob-big">{formatRate(displayRate)}<span className="sign">%</span></div>
-                          <div className="prob-bar">
-                            <div className="prob-bar-inner" style={{ width: `${Math.min(displayRate * 10, 100)}%` }}>
-                              <div className="prob-fill-base" style={{ width: '50%' }}></div>
-                              <div className="prob-fill-boost" style={{ width: '50%', background: isMiracleTime ? 'linear-gradient(90deg, var(--orange), var(--orange-deep))' : 'transparent' }}></div>
-                            </div>
-                          </div>
-                          <div className="rate-compare">
-                            <div className="rc-values">
-                              <div className="rc-item"><span className="rc-label">通常時</span><span className="rc-value">{formatRate(normalRate)}%</span></div>
-                              <div className="rc-item mt-col">
-                                <span className="rc-label">ミラクルタイム</span><span className="rc-value hi">{formatRate(miracleRate)}%</span><br />
-                                {(normalRate > 0 && miracleRate > 0) && (
-                                  <span className={`rc-multi ${miracleRate / normalRate >= 2 ? 'match' : 'warn'}`}>
-                                    実測 <span className="num">{(miracleRate / normalRate).toFixed(2)}倍</span>
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          </div>
+        {/* 3 cards per cube type, grouped by cube */}
+        {(["neo","mega","neo_additional"] as CubeType[]).map((cubeType) => {
+          const stats = probStats.filter((s: any) => s.cube_type === cubeType);
+          return (
+            <div key={cubeType} className="prob-card">
+              <div className="prob-card-head">
+                <span className="cube-icon">
+                  <img
+                    src={`/assets/cube-icons/cube-${cubeType === 'neo' ? 'neo' : cubeType === 'mega' ? 'mega' : 'neo-additional'}.png`}
+                    alt={CUBE_LABELS[cubeType]}
+                  />
+                </span>
+                <span className="name">{CUBE_LABELS[cubeType]}</span>
+                <span className="type-badge">{POTENTIAL_LABELS[cubeType === "neo_additional" ? "additional_potential" : "potential"]}</span>
+              </div>
+              <div className="prob-rows">
+                {stats.map((stat, index) => (
+                  index === 0 ? (
+                    <div key="top" className="prob-row top">
+                      <div className="grade-flow">
+                        {GRADE_LABELS[stat.grade_from]} <span className="arrow">→</span> <b>{GRADE_LABELS[stat.grade_to]}</b>
+                      </div>
+                      <div className="prob-big">{formatRate(isMiracleTime ? stat.miracleRate : stat.normalRate)}<span className="sign">%</span></div>
+                      <div className="prob-bar">
+                        <div className="prob-bar-inner" style={{ width: `${Math.min((isMiracleTime ? stat.miracleRate : stat.normalRate) * 10, 100)}%` }}>
+                          <div className="prob-fill-base" style={{ width: '50%' }}></div>
+                          <div className="prob-fill-boost" style={{ width: '50%', background: isMiracleTime ? 'linear-gradient(90deg, var(--orange), var(--orange-deep))' : 'transparent' }}></div>
                         </div>
-                      );
-                    } else {
-                      // Sub rows
-                      return (
-                        <div key={index} className="prob-row sub">
-                          <div className="grade-flow">
-                            {GRADE_LABELS[fromGrade]} <span className="arrow">→</span> <b>{GRADE_LABELS[toGrade]}</b>
-                          </div>
-                          <div className="mini-compare">
-                            <div className="mv-item"><span className="mv-label">通常時</span><span className="mv-value">{formatRate(normalRate)}%</span></div>
-                            <div className="mv-item"><span className="mv-label">ミラクル</span><span className="mv-value hi">{formatRate(miracleRate)}%</span></div>
-                            {(normalRate > 0 && miracleRate > 0) && (
-                              <span className={`mv-multi ${miracleRate / normalRate >= 2 ? 'match' : 'warn'}`}>
-                                {(miracleRate / normalRate).toFixed(2)}倍
+                      </div>
+                      <div className="rate-compare">
+                        <div className="rc-values">
+                          <div className="rc-item"><span className="rc-label">通常時</span><span className="rc-value">{formatRate(stat.normalRate)}%</span></div>
+                          <div className="rc-item mt-col">
+                            <span className="rc-label">ミラクルタイム</span><span className="rc-value hi">{formatRate(stat.miracleRate)}%</span><br />
+                            {(stat.normalRate > 0 && stat.miracleRate > 0) && (
+                              <span className={`rc-multi ${stat.miracleRate / stat.normalRate >= 2 ? 'match' : 'warn'}`}>
+                                実測 <span className="num">{(stat.miracleRate / stat.normalRate).toFixed(2)}倍</span>
                               </span>
                             )}
                           </div>
-                          <div className="prob-bar">
-                            <div className="prob-bar-inner" style={{ width: `${Math.min(displayRate * 10, 100)}%` }}>
-                              <div className="prob-fill-base" style={{ width: '50%' }}></div>
-                              <div className="prob-fill-boost" style={{ width: '50%', background: isMiracleTime ? 'linear-gradient(90deg, var(--orange), var(--orange-deep))' : 'transparent' }}></div>
-                            </div>
-                          </div>
                         </div>
-                      );
-                    }
-                  })}
-                </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div key={index} className="prob-row sub">
+                      <div className="grade-flow">
+                        {GRADE_LABELS[stat.grade_from]} <span className="arrow">→</span> <b>{GRADE_LABELS[stat.grade_to]}</b>
+                      </div>
+                      <div className="mini-compare">
+                        <div className="mv-item"><span className="mv-label">通常時</span><span className="mv-value">{formatRate(stat.normalRate)}%</span></div>
+                        <div className="mv-item"><span className="mv-label">ミラクル</span><span className="mv-value hi">{formatRate(stat.miracleRate)}%</span></div>
+                        {(stat.normalRate > 0 && stat.miracleRate > 0) && (
+                          <span className={`mv-multi ${stat.miracleRate / stat.normalRate >= 2 ? 'match' : 'warn'}`}>
+                            {(stat.miracleRate / stat.normalRate).toFixed(2)}倍
+                          </span>
+                        )}
+                      </div>
+                      <div className="prob-bar">
+                        <div className="prob-bar-inner" style={{ width: `${Math.min((isMiracleTime ? stat.miracleRate : stat.normalRate) * 10, 100)}%` }}>
+                          <div className="prob-fill-base" style={{ width: '50%' }}></div>
+                          <div className="prob-fill-boost" style={{ width: '50%', background: isMiracleTime ? 'linear-gradient(90deg, var(--orange), var(--orange-deep))' : 'transparent' }}></div>
+                        </div>
+                      </div>
+                    </div>
+                  )
+                ))}
               </div>
-            );
-          })
-        )}
+            </div>
+          );
+        })}
       </div>
 
       {/* Stat Strip */}
