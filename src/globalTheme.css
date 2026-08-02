@@ -6,7 +6,7 @@
   --paper: #FAF8F6;
   --ink: #1A1410;
   --ink-soft: #6E6259;
-  --orange: #ffdd00;
+  --orange: #ff973d;
   --orange-deep: #E24F00;
   --orange-glow: #FFB27A;
   --line: #ECE3D9;
@@ -15,8 +15,8 @@
   /* Prob-bar compare states: ミラクル識別=ブランドのオレンジ、判定色は緑(良好)/赤(警告)の2色のみ */
   --good: #72d377;
   --good-bg: #EAF6EC;
-  --danger: #db9191;
-  --danger-deep: #D63B3B;
+  --danger: #ff2424;
+  --danger-deep: #d340e7;
   --danger-bg: #FDECEC;
   --font-family-sans: 'Noto Sans JP', sans-serif;
   --font-family-num: 'Orbitron', sans-serif;
