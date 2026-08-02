@@ -22,6 +22,25 @@ const MAX_CHARACTER_NAME_LENGTH = 50;
 const MAX_SERVER_NAME_LENGTH = 20;
 
 /**
+ * timestamp カラムは tz なしの `timestamp` 型で、JSTの値をそのまま(オフセット無しで)保存する設計。
+ * epoch(ms) から JST の生の日時文字列を作る。
+ */
+function toJstNaiveTimestamp(epochMs: number): string {
+  const d = new Date(epochMs + 9 * 60 * 60 * 1000); // JSTの数字を取り出すためのシフト
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}T${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}:${pad(d.getUTCSeconds())}`;
+}
+
+/**
+ * DBの timestamp (JSTのnaive文字列 or 既にオフセット付き) を epoch(ms) に変換する。
+ */
+function fromJstNaiveTimestamp(value: string): number {
+  const hasOffset = /[Zz]|[+-]\d{2}:?\d{2}$/.test(value);
+  const iso = hasOffset ? value : `${value.replace(" ", "T")}+09:00`;
+  return new Date(iso).getTime();
+}
+
+/**
  * Sanitize user input to prevent XSS and injection attacks.
  * This is a defense-in-depth measure; primary protection is React's auto-escaping and DB constraints.
  */
@@ -162,6 +181,9 @@ export class SupabaseRecordRepository implements IRecordRepository {
       gradeBefore = mapped;
       gradeAfter = mapped;
     }
+    // timestamp（使用日時・JST naive）を epoch(ms) に変換。無ければ created_at で代替。
+    const timestamp = row.timestamp ? fromJstNaiveTimestamp(row.timestamp) : created_at;
+
     return {
       id,
       server_name: row.server_name ?? "",
@@ -171,6 +193,7 @@ export class SupabaseRecordRepository implements IRecordRepository {
       grade_after: gradeAfter,
       quantity_used: row.quantity_used,
       character_name: row.character_name ?? null,
+      timestamp,
       created_at,
       part: row.part ?? undefined,
       // optional fields not stored in DB are omitted
@@ -198,7 +221,7 @@ export class SupabaseRecordRepository implements IRecordRepository {
       if ((error as { code?: string }).code === "PGRST116") return undefined;
       throw error;
     }
-    return data as ManualEntryRecord;
+    return this.mapDbRow(data);
   }
 
   async add(record: Omit<ManualEntryRecord, "id">): Promise<ManualEntryRecord> {
@@ -219,8 +242,8 @@ export class SupabaseRecordRepository implements IRecordRepository {
       ...recordWithoutGrades,
       character_name: sanitizedCharacterName,
       grade_transition: gradeTransition,
-      // timestamp を JST ISO 文字列で送信（DBカラムは JST の timestamptz 前提）
-      timestamp: new Date(record.timestamp).toISOString().replace('Z', '+09:00'),
+      // timestamp カラムは tz なし。JSTの生の日時をそのまま保存する。
+      timestamp: toJstNaiveTimestamp(record.timestamp),
     };
 
     const { data, error } = await this.client
@@ -249,8 +272,8 @@ export class SupabaseRecordRepository implements IRecordRepository {
       ...recordWithoutGrades,
       character_name: sanitizedCharacterName,
       grade_transition: gradeTransition,
-      // timestamp を JST ISO 文字列で送信（DBカラムは JST の timestamptz 前提）
-      timestamp: new Date(record.timestamp).toISOString().replace('Z', '+09:00'),
+      // timestamp カラムは tz なし。JSTの生の日時をそのまま保存する。
+      timestamp: toJstNaiveTimestamp(record.timestamp),
     };
 
     const { data, error } = await this.client
@@ -307,10 +330,10 @@ export class SupabaseRecordRepository implements IRecordRepository {
     count: number;
     supply_rate: number; // 平均使用個数 (quantity_used の平均)
   }>> {
-    // 1. キューブ使用イベント取得
+    // 1. キューブ使用イベント取得（判定対象の timestamp 列を必ず含める）
     const { data: events, error: evErr } = await this.client
       .from("cube_usage_events")
-      .select("id,server_name,potential_type,cube_type,grade_transition,quantity_used,character_name,created_at,part");
+      .select("id,server_name,potential_type,cube_type,grade_transition,quantity_used,character_name,timestamp,created_at,part");
     if (evErr) throw evErr;
     const rows = (events || []) as any[];
 
@@ -326,22 +349,14 @@ export class SupabaseRecordRepository implements IRecordRepository {
       scheduleRows = schedules;
     }
 
-    // 3. 判定ヘルパー（timestamp / miracle_time_schedules は両方とも JST で格納されている）
-    // Helper to ensure schedule strings are interpreted as JST
-    const toJST = (v: string | null | undefined) => {
-      if (!v) return '';
-      // If already contains timezone info, return as-is
-      if (/[Zz]|[+-]\d{2}:?\d{2}$/.test(v)) return v;
-      // Replace space with 'T' if needed and append JST offset
-      const iso = v.replace(' ', 'T');
-      return iso.includes('T') ? `${iso}+09:00` : `${iso}T00:00:00+09:00`;
-    };
+    // 3. 判定ヘルパー（timestamp / miracle_time_schedules は両方とも JST naive で格納されている想定）
+    // fromJstNaiveTimestamp はファイル冒頭で定義済みの共通関数を再利用する（重複ロジックの整理）
     const isInMiracle = (ts: string | null | undefined) => {
       if (!ts) return false;
-      const time = new Date(toJST(ts)).getTime();
+      const time = fromJstNaiveTimestamp(ts);
       return scheduleRows.some(s => {
-        const start = new Date(toJST(s.start)).getTime();
-        const end = new Date(toJST(s.end)).getTime();
+        const start = fromJstNaiveTimestamp(s.start);
+        const end = fromJstNaiveTimestamp(s.end);
         return time >= start && time <= end;
       });
     };
@@ -439,18 +454,10 @@ export class SupabaseRecordRepository implements IRecordRepository {
  *     (potential_type = 'additional_potential' AND cube_type = 'neo_additional')
  *   );
  *
- * ALTER TABLE cube_usage_events ADD CONSTRAINT valid_grade_before
- *   CHECK (grade_before IN ('rare', 'epic', 'unique', 'legendary'));
- *
- * ALTER TABLE cube_usage_events ADD CONSTRAINT valid_grade_after
- *   CHECK (grade_after IN ('rare', 'epic', 'unique', 'legendary'));
- *
+ * -- NOTE: このアプリは grade_before/grade_after をDBへ送信しない設計（add/updateで明示的にomitしている）。
+ * -- 実際に保存されるのは grade_transition (1=rare→epic, 2=epic→unique, 3=unique→legendary) のみ。
  * ALTER TABLE cube_usage_events ADD CONSTRAINT valid_grade_transition
- *   CHECK (
- *     (grade_before = 'rare' AND grade_after = 'epic') OR
- *     (grade_before = 'epic' AND grade_after = 'unique') OR
- *     (grade_before = 'unique' AND grade_after = 'legendary')
- *   );
+ *   CHECK (grade_transition IN (1, 2, 3));
  *
  * ALTER TABLE cube_usage_events ADD CONSTRAINT valid_quantity
  *   CHECK (quantity_used >= 1 AND quantity_used <= 9999);

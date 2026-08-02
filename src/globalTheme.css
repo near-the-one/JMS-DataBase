@@ -6,12 +6,18 @@
   --paper: #FAF8F6;
   --ink: #1A1410;
   --ink-soft: #6E6259;
-  --orange: #FF6600;
+  --orange: #ffdd00;
   --orange-deep: #E24F00;
   --orange-glow: #FFB27A;
   --line: #ECE3D9;
   --amber-bg: #FFF2E7;
   --radius: 14px;
+  /* Prob-bar compare states: ミラクル識別=ブランドのオレンジ、判定色は緑(良好)/赤(警告)の2色のみ */
+  --good: #72d377;
+  --good-bg: #EAF6EC;
+  --danger: #db9191;
+  --danger-deep: #D63B3B;
+  --danger-bg: #FDECEC;
   --font-family-sans: 'Noto Sans JP', sans-serif;
   --font-family-num: 'Orbitron', sans-serif;
   --font-size-base: 16px;
@@ -167,9 +173,11 @@ main {
   0% {
     box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.6);
   }
+
   70% {
     box-shadow: 0 0 0 8px rgba(255, 255, 255, 0);
   }
+
   100% {
     box-shadow: 0 0 0 0 rgba(255, 255, 255, 0);
   }
@@ -271,29 +279,65 @@ main {
   color: var(--orange);
 }
 
-.prob-row .prob-bar {
-  height: 6px;
-  border-radius: 999px;
-  background: var(--amber-bg);
+.prob-bar-compare {
+  position: relative;
+  height: 8px;
+  background: rgba(26, 20, 16, 0.08);
+  /* ink alphaで薄いトラック色。白背景でも視認できる */
+  border-radius: 4px;
   overflow: hidden;
 }
 
-.prob-bar-inner {
+.prob-fill-miracle,
+.prob-fill-normal {
+  position: absolute;
+  top: 0;
+  left: 0;
   height: 100%;
-  display: flex;
-  border-radius: 999px;
-  overflow: hidden;
+  border-radius: 4px;
+  transition: width 0.3s ease;
 }
 
-.prob-fill-base {
-  height: 100%;
-  background: var(--orange-glow);
-}
-
-.prob-fill-boost {
-  height: 100%;
+.prob-fill-miracle {
   background: linear-gradient(90deg, var(--orange), var(--orange-deep));
-  box-shadow: 0 0 8px rgba(255, 102, 0, 0.5);
+  /* ミラクルタイムの識別色。バナー等と統一されたブランドカラー */
+  z-index: 1;
+}
+
+.prob-fill-normal {
+  background: var(--good);
+  /* 2倍以上(良好)は緑 */
+  z-index: 2;
+}
+
+.prob-fill-normal.warn {
+  background: linear-gradient(90deg, var(--danger), var(--danger-deep));
+  /* 2倍未満(警告)は赤 */
+}
+
+.prob-bar-ideal-marker {
+  position: absolute;
+  top: -3px;
+  bottom: -3px;
+  left: 50%;
+  width: 0;
+  border-left: 1px dashed rgba(26, 20, 16, 0.35);
+  z-index: 3;
+}
+
+.prob-bar-ideal-marker.warn {
+  border-left-color: var(--danger-deep);
+}
+
+.prob-bar-ideal-label {
+  position: absolute;
+  top: -14px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 9px;
+  line-height: 1;
+  color: var(--ink-soft);
+  white-space: nowrap;
 }
 
 .bar-legend {
@@ -401,7 +445,18 @@ main {
 
 .rc-value.hi {
   color: var(--orange-deep);
+  /* ミラクルタイムの値は常にブランドのオレンジ(識別色) */
   font-size: 18px;
+}
+
+.rc-value.good {
+  color: var(--good);
+  /* 通常時の値が2倍ライン以上(健全) */
+}
+
+.rc-value.warn {
+  color: var(--danger);
+  /* 通常時の値が2倍ラインを割っている(要注意) */
 }
 
 .rc-multi {
@@ -419,14 +474,14 @@ main {
   font-family: var(--font-family-num);
 }
 
-.rc-multi.match {
-  color: #2E7D32;
-  background: #EAF6EC;
+.rc-multi.good {
+  color: var(--good);
+  background: var(--good-bg);
 }
 
 .rc-multi.warn {
-  color: var(--orange-deep);
-  background: var(--amber-bg);
+  color: var(--danger);
+  background: var(--danger-bg);
 }
 
 .rc-claim {
@@ -463,6 +518,15 @@ main {
 
 .mini-compare .mv-value.hi {
   color: var(--orange-deep);
+  /* ミラクルタイムの値は常にブランドのオレンジ(識別色) */
+}
+
+.mini-compare .mv-value.good {
+  color: var(--good);
+}
+
+.mini-compare .mv-value.warn {
+  color: var(--danger);
 }
 
 .mini-compare .mv-multi {
@@ -474,14 +538,14 @@ main {
   border-radius: 999px;
 }
 
-.mini-compare .mv-multi.match {
-  color: #2E7D32;
-  background: #EAF6EC;
+.mini-compare .mv-multi.good {
+  color: var(--good);
+  background: var(--good-bg);
 }
 
 .mini-compare .mv-multi.warn {
-  color: var(--orange-deep);
-  background: var(--amber-bg);
+  color: var(--danger);
+  background: var(--danger-bg);
 }
 
 .prob-row.sub .prob-value {

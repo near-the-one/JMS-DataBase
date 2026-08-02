@@ -19,6 +19,52 @@ function formatRate(rate: number | undefined): string {
   return Number(rate).toFixed(1);
 }
 
+/** 通常時/ミラクルタイムの2値を、大きい方がバー端(100%)に届くようスケーリングした幅(%)を返す */
+function getCompareBarWidths(normalRate: number, miracleRate: number): { normalWidth: number; miracleWidth: number } {
+  const maxRate = Math.max(normalRate, miracleRate, 0.01); // 0除算防止
+  const scale = 100 / maxRate;
+  return {
+    normalWidth: normalRate * scale,
+    miracleWidth: miracleRate * scale,
+  };
+}
+
+/**
+ * ミラクルタイムは理論上「通常時の2倍以上」が正常(2倍を超える分にはユーザー有利なので問題ない)。
+ * 問題なのは2倍を"割っている"場合のみ。バーの色分けと数値の文字色、両方でこの判定を共有する。
+ */
+function getRateHealth(normalRate: number, miracleRate: number): { hasBothRates: boolean; isBelowFloor: boolean } {
+  const hasBothRates = normalRate > 0 && miracleRate > 0;
+  return {
+    hasBothRates,
+    isBelowFloor: hasBothRates && miracleRate / normalRate < 2,
+  };
+}
+
+/** 良好/警告/データ不足に応じて "good" | "warn" | "" のクラス名を返す（rc-value, mv-value 共通） */
+function healthClass(normalRate: number, miracleRate: number): string {
+  const { hasBothRates, isBelowFloor } = getRateHealth(normalRate, miracleRate);
+  if (!hasBothRates) return "";
+  return isBelowFloor ? "warn" : "good";
+}
+
+/**
+ * 通常時/ミラクルタイム比較バー。
+ * ミラクルタイムは理論上「通常時の2倍以上」が正常(2倍を超える分にはユーザー有利なので問題ない)。
+ * 問題なのは2倍を"割っている"場合のみなので、その場合だけ通常時バーを警告色にする。
+ * 50%地点の点線は「2倍ライン(最低基準)」の目印。
+ */
+function CompareBar({ normalRate, miracleRate, showLabel }: { normalRate: number; miracleRate: number; showLabel?: boolean }) {
+  const { normalWidth, miracleWidth } = getCompareBarWidths(normalRate, miracleRate);
+  const { isBelowFloor } = getRateHealth(normalRate, miracleRate);
+  return (
+    <div className="prob-bar prob-bar-compare">
+      <div className="prob-fill-miracle" style={{ width: `${miracleWidth}%` }}></div>
+      <div className={`prob-fill-normal${isBelowFloor ? ' warn' : ''}`} style={{ width: `${normalWidth}%` }}></div>
+    </div>
+  );
+}
+
 export function Dashboard() {
   const [cubeUsageStats, setCubeUsageStats] = useState<Array<{
     potential_type: string;
@@ -69,14 +115,14 @@ export function Dashboard() {
   }, []);
 
   // Fetch latest update timestamp from DB
-useEffect(() => {
-  const repo = new SupabaseRecordRepository();
-  repo.getLatestTimestamp()
-    .then(ts => setLatestUpdate(new Date(ts)))
-    .catch(err => console.error('Failed to fetch latest timestamp', err));
-}, []);
+  useEffect(() => {
+    const repo = new SupabaseRecordRepository();
+    repo.getLatestTimestamp()
+      .then(ts => setLatestUpdate(new Date(ts)))
+      .catch(err => console.error('Failed to fetch latest timestamp', err));
+  }, []);
 
-// Fetch miracle time schedules and check if currently in miracle time
+  // Fetch miracle time schedules and check if currently in miracle time
   useEffect(() => {
     const fetchSchedules = async () => {
       const { data, error } = await supabase.from("miracle_time_schedules").select("start,end");
@@ -183,14 +229,14 @@ useEffect(() => {
 
       <div className="page-head">
         <div className="eyebrow">PROBABILITY OVERVIEW</div>
-        <h1>種類ごとの昇級確率</h1>
-        <p>コミュニティが登録したキューブ使用データから算出したリアルタイム集計です。</p>
+        <h1>キューブごとの昇級確率</h1>
+        <p>コミュニティが登録したキューブ使用データから算出したリアルタイム集計で、実際の確率とは異なります。</p>
       </div>
 
       {/* Prob Grid - 3 cards showing primary transition for each cube type */}
       <div className="prob-grid">
         {/* 3 cards per cube type, grouped by cube */}
-        {(["neo","mega","neo_additional"] as CubeType[]).map((cubeType) => {
+        {(["neo", "mega", "neo_additional"] as CubeType[]).map((cubeType) => {
           const stats = probStats.filter((s: any) => s.cube_type === cubeType);
           return (
             <div key={cubeType} className="prob-card">
@@ -212,19 +258,14 @@ useEffect(() => {
                         {GRADE_LABELS[stat.grade_from as Grade]} <span className="arrow">→</span> <b>{GRADE_LABELS[stat.grade_to as Grade]}</b>
                       </div>
                       <div className="prob-big">{formatRate(isMiracleTime ? stat.miracleRate : stat.normalRate)}<span className="sign">%</span></div>
-                      <div className="prob-bar">
-                        <div className="prob-bar-inner" style={{ width: `${Math.min((isMiracleTime ? stat.miracleRate : stat.normalRate) * 10, 100)}%` }}>
-                          <div className="prob-fill-base" style={{ width: '50%' }}></div>
-                          <div className="prob-fill-boost" style={{ width: '50%', background: isMiracleTime ? 'linear-gradient(90deg, var(--orange), var(--orange-deep))' : 'transparent' }}></div>
-                        </div>
-                      </div>
+                      <CompareBar normalRate={stat.normalRate} miracleRate={stat.miracleRate} showLabel />
                       <div className="rate-compare">
                         <div className="rc-values">
-                          <div className="rc-item"><span className="rc-label">通常時</span><span className="rc-value">{formatRate(stat.normalRate)}%</span></div>
+                          <div className="rc-item"><span className="rc-label">通常時</span><span className={`rc-value ${healthClass(stat.normalRate, stat.miracleRate)}`}>{formatRate(stat.normalRate)}%</span></div>
                           <div className="rc-item mt-col">
                             <span className="rc-label">ミラクルタイム</span><span className="rc-value hi">{formatRate(stat.miracleRate)}%</span><br />
                             {(stat.normalRate > 0 && stat.miracleRate > 0) && (
-                              <span className={`rc-multi ${stat.miracleRate / stat.normalRate >= 2 ? 'match' : 'warn'}`}>
+                              <span className={`rc-multi ${healthClass(stat.normalRate, stat.miracleRate)}`}>
                                 実測 <span className="num">{(stat.miracleRate / stat.normalRate).toFixed(2)}倍</span>
                               </span>
                             )}
@@ -238,20 +279,15 @@ useEffect(() => {
                         {GRADE_LABELS[stat.grade_from as Grade]} <span className="arrow">→</span> <b>{GRADE_LABELS[stat.grade_to as Grade]}</b>
                       </div>
                       <div className="mini-compare">
-                        <div className="mv-item"><span className="mv-label">通常時</span><span className="mv-value">{formatRate(stat.normalRate)}%</span></div>
+                        <div className="mv-item"><span className="mv-label">通常時</span><span className={`mv-value ${healthClass(stat.normalRate, stat.miracleRate)}`}>{formatRate(stat.normalRate)}%</span></div>
                         <div className="mv-item"><span className="mv-label">ミラクル</span><span className="mv-value hi">{formatRate(stat.miracleRate)}%</span></div>
                         {(stat.normalRate > 0 && stat.miracleRate > 0) && (
-                          <span className={`mv-multi ${stat.miracleRate / stat.normalRate >= 2 ? 'match' : 'warn'}`}>
+                          <span className={`mv-multi ${healthClass(stat.normalRate, stat.miracleRate)}`}>
                             {(stat.miracleRate / stat.normalRate).toFixed(2)}倍
                           </span>
                         )}
                       </div>
-                      <div className="prob-bar">
-                        <div className="prob-bar-inner" style={{ width: `${Math.min((isMiracleTime ? stat.miracleRate : stat.normalRate) * 10, 100)}%` }}>
-                          <div className="prob-fill-base" style={{ width: '50%' }}></div>
-                          <div className="prob-fill-boost" style={{ width: '50%', background: isMiracleTime ? 'linear-gradient(90deg, var(--orange), var(--orange-deep))' : 'transparent' }}></div>
-                        </div>
-                      </div>
+                      <CompareBar normalRate={stat.normalRate} miracleRate={stat.miracleRate} />
                     </div>
                   )
                 ))}
