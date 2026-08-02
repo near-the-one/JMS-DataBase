@@ -1,6 +1,6 @@
 import type { PotentialType, CubeType, Grade } from "@/types";
 import { GRADE_LABELS, POTENTIAL_LABELS, CUBE_LABELS } from "@/types";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import type { CubeStatsResponse } from "@/types/api";
 
 type PotentialGroup = {
@@ -12,6 +12,12 @@ const GROUPS: PotentialGroup[] = [
   { potentialType: "potential", cubes: ["neo", "mega"] },
   { potentialType: "additional_potential", cubes: ["neo_additional"] },
 ];
+
+/** 公式が謳う「ミラクルタイムは通常時の2倍」という表示値。実測倍率との比較基準として使う。 */
+const OFFICIAL_MIRACLE_MULTIPLIER = 2.0;
+
+/** この件数を下回るデータは「サンプル数が少ない」として、数値を薄い色にし警告文を出す */
+const LOW_SAMPLE_THRESHOLD = 50;
 
 function formatRate(rate: number | undefined): string {
   if (rate === undefined || rate === 0) return "—";
@@ -40,26 +46,17 @@ function getRateHealth(normalRate: number, miracleRate: number): { hasBothRates:
   };
 }
 
-/** 良好/警告/データ不足に応じて "good" | "warn" | "" のクラス名を返す（rc-value, mv-value 共通） */
-function healthClass(normalRate: number, miracleRate: number): string {
-  const { hasBothRates, isBelowFloor } = getRateHealth(normalRate, miracleRate);
-  if (!hasBothRates) return "";
-  return isBelowFloor ? "warn" : "good";
-}
-
 /**
  * 通常時/ミラクルタイム比較バー。
- * ミラクルタイムは理論上「通常時の2倍以上」が正常(2倍を超える分にはユーザー有利なので問題ない)。
- * 問題なのは2倍を"割っている"場合のみなので、その場合だけ通常時バーを警告色にする。
- * 50%地点の点線は「2倍ライン(最低基準)」の目印。
+ * 色は割合にかかわらず固定(通常時=緑、ミラクルタイム=オレンジ)。
+ * 2倍ラインを割っているかどうかの警告は、バーではなくカード内のテキスト(a-diff)側で表示する。
  */
 function CompareBar({ normalRate, miracleRate }: { normalRate: number; miracleRate: number; showLabel?: boolean }) {
   const { normalWidth, miracleWidth } = getCompareBarWidths(normalRate, miracleRate);
-  const { isBelowFloor } = getRateHealth(normalRate, miracleRate);
   return (
     <div className="prob-bar prob-bar-compare">
       <div className="prob-fill-miracle" style={{ width: `${miracleWidth}%` }}></div>
-      <div className={`prob-fill-normal${isBelowFloor ? ' warn' : ''}`} style={{ width: `${normalWidth}%` }}></div>
+      <div className="prob-fill-normal" style={{ width: `${normalWidth}%` }}></div>
     </div>
   );
 }
@@ -73,6 +70,7 @@ interface DashboardProps {
 }
 
 export function Dashboard({ statsResponse, participantUsers, isMiracleTime, latestUpdatedAt, style }: DashboardProps) {
+  const [activeCube, setActiveCube] = useState<CubeType>("neo");
 
   // APIレスポンスを既存UIロジックが期待する形式に変換
   const cubeUsageStats = useMemo(() => {
@@ -157,7 +155,7 @@ export function Dashboard({ statsResponse, participantUsers, isMiracleTime, late
     miracleCount: number;
   };
 
-  // prob-grid transition stats
+  // 全キューブ分の遷移統計（タブ表示・統計サマリの両方に使う）
   const probStats = useMemo(() => {
     const stats: ProbStat[] = [];
     for (const group of GROUPS) {
@@ -184,12 +182,19 @@ export function Dashboard({ statsResponse, participantUsers, isMiracleTime, late
       }
     }
     return stats;
-  }, [statMap])
+  }, [statMap]);
 
   // Calculate total stats for stat-strip
   const totalSamples = cubeUsageStats.reduce((sum, s) => sum + s.total_quantity, 0);
-  // 対応キューブ種は型定義に基づく固定値（データの有無に関わり）
-  const cubeTypesUsed = Object.keys(CUBE_LABELS).length;
+
+  // 「直近ミラクルの乖離」: 公式の2倍ラインを割っている(=要注意な)遷移の件数
+  const miracleDeviationCount = useMemo(
+    () => probStats.filter((s) => getRateHealth(s.normalRate, s.miracleRate).isBelowFloor).length,
+    [probStats],
+  );
+
+  const cubeTabs: CubeType[] = ["neo", "mega", "neo_additional"];
+  const activeStats = probStats.filter((s) => s.cube_type === activeCube);
 
   return (
     <div data-testid="view-dashboard" style={style}>
@@ -205,65 +210,90 @@ export function Dashboard({ statsResponse, participantUsers, isMiracleTime, late
         <p>コミュニティが登録したキューブ使用データから算出したリアルタイム集計で、実際の確率とは異なります。</p>
       </div>
 
-      {/* Prob Grid - 3 cards showing primary transition for each cube type */}
-      <div className="prob-grid">
-        {/* 3 cards per cube type, grouped by cube */}
-        {(["neo", "mega", "neo_additional"] as CubeType[]).map((cubeType) => {
-          const stats = probStats.filter((s) => s.cube_type === cubeType);
+      {/* Cube tab switcher */}
+      <div className="a-tabbar">
+        {cubeTabs.map((cubeType) => (
+          <button
+            key={cubeType}
+            type="button"
+            className={`a-tab${activeCube === cubeType ? ' active' : ''}`}
+            onClick={() => setActiveCube(cubeType)}
+          >
+            {CUBE_LABELS[cubeType]}
+          </button>
+        ))}
+      </div>
+
+      {/* Persistent caveat */}
+      <div className="a-caveat">
+        ⚠️ コミュニティ実測値です。公式確率ではありません。サンプルが少ない項目は参考程度にご覧ください。
+      </div>
+
+      {/* Cards for the selected cube */}
+      <div className="a-cards">
+        <div className="a-cards-head">
+          <span className="cube-icon">
+            <img
+              src={`/assets/cube-icons/cube-${activeCube === 'neo' ? 'neo' : activeCube === 'mega' ? 'mega' : 'neo-additional'}.png`}
+              alt={CUBE_LABELS[activeCube]}
+            />
+          </span>
+          <span className="name">{CUBE_LABELS[activeCube]}</span>
+          <span className="type-badge">{POTENTIAL_LABELS[activeCube === "neo_additional" ? "additional_potential" : "potential"]}</span>
+        </div>
+
+        {activeStats.map((stat) => {
+          const displayRate = isMiracleTime ? stat.miracleRate : stat.normalRate;
+          const sampleCount = stat.normalCount + stat.miracleCount;
+          const isLowSample = sampleCount > 0 && sampleCount < LOW_SAMPLE_THRESHOLD;
+          const { hasBothRates, isBelowFloor } = getRateHealth(stat.normalRate, stat.miracleRate);
+          const measuredMultiplier = hasBothRates ? stat.miracleRate / stat.normalRate : null;
+          const diffPercent = measuredMultiplier !== null
+            ? ((measuredMultiplier / OFFICIAL_MIRACLE_MULTIPLIER - 1) * 100)
+            : null;
+
           return (
-            <div key={cubeType} className="prob-card">
-              <div className="prob-card-head">
-                <span className="cube-icon">
-                  <img
-                    src={`/assets/cube-icons/cube-${cubeType === 'neo' ? 'neo' : cubeType === 'mega' ? 'mega' : 'neo-additional'}.png`}
-                    alt={CUBE_LABELS[cubeType]}
-                  />
-                </span>
-                <span className="name">{CUBE_LABELS[cubeType]}</span>
-                <span className="type-badge">{POTENTIAL_LABELS[cubeType === "neo_additional" ? "additional_potential" : "potential"]}</span>
+            <div className="a-card" key={`${stat.grade_from}-${stat.grade_to}`}>
+              <div className="a-cardhead">
+                <div className="a-title">
+                  {GRADE_LABELS[stat.grade_from as Grade]} <span className="arrow">→</span> <b>{GRADE_LABELS[stat.grade_to as Grade]}</b>
+                </div>
+                <div className={`a-n${isLowSample ? ' low' : ''}`}>
+                  n = {sampleCount > 0 ? sampleCount.toLocaleString() : '—'}件
+                </div>
               </div>
-              <div className="prob-rows">
-                {stats.map((stat, index) => (
-                  index === 0 ? (
-                    <div key="top" className="prob-row top">
-                      <div className="grade-flow">
-                        {GRADE_LABELS[stat.grade_from as Grade]} <span className="arrow">→</span> <b>{GRADE_LABELS[stat.grade_to as Grade]}</b>
-                      </div>
-                      <div className="prob-big">{formatRate(isMiracleTime ? stat.miracleRate : stat.normalRate)}<span className="sign">%</span></div>
-                      <CompareBar normalRate={stat.normalRate} miracleRate={stat.miracleRate} showLabel />
-                      <div className="rate-compare">
-                        <div className="rc-values">
-                          <div className="rc-item"><span className="rc-label">通常時</span><span className={`rc-value ${healthClass(stat.normalRate, stat.miracleRate)}`}>{formatRate(stat.normalRate)}%</span></div>
-                          <div className="rc-item mt-col">
-                            <span className="rc-label">ミラクルタイム</span><span className="rc-value hi">{formatRate(stat.miracleRate)}%</span><br />
-                            {(stat.normalRate > 0 && stat.miracleRate > 0) && (
-                              <span className={`rc-multi ${healthClass(stat.normalRate, stat.miracleRate)}`}>
-                                実測 <span className="num">{(stat.miracleRate / stat.normalRate).toFixed(2)}倍</span>
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    <div key={index} className="prob-row sub">
-                      <div className="grade-flow">
-                        {GRADE_LABELS[stat.grade_from as Grade]} <span className="arrow">→</span> <b>{GRADE_LABELS[stat.grade_to as Grade]}</b>
-                      </div>
-                      <div className="mini-compare">
-                        <div className="mv-item"><span className="mv-label">通常時</span><span className={`mv-value ${healthClass(stat.normalRate, stat.miracleRate)}`}>{formatRate(stat.normalRate)}%</span></div>
-                        <div className="mv-item"><span className="mv-label">ミラクル</span><span className="mv-value hi">{formatRate(stat.miracleRate)}%</span></div>
-                        {(stat.normalRate > 0 && stat.miracleRate > 0) && (
-                          <span className={`mv-multi ${healthClass(stat.normalRate, stat.miracleRate)}`}>
-                            {(stat.miracleRate / stat.normalRate).toFixed(2)}倍
-                          </span>
-                        )}
-                      </div>
-                      <CompareBar normalRate={stat.normalRate} miracleRate={stat.miracleRate} />
-                    </div>
-                  )
-                ))}
+
+              <div className="a-big" style={isLowSample ? { color: 'var(--ink-soft)' } : undefined}>
+                {formatRate(displayRate)}<span className="sign">%</span>
               </div>
+
+              {isLowSample ? (
+                <div className="a-sub warn">⚠ サンプル数が少なく、実際の確率と大きく異なる可能性があります</div>
+              ) : (
+                <div className="a-sub">
+                  {isMiracleTime ? 'ミラクルタイムの実測値' : '通常時の実測値'}(合計{sampleCount.toLocaleString()}件の使用データより算出)
+                </div>
+              )}
+
+              <CompareBar normalRate={stat.normalRate} miracleRate={stat.miracleRate} />
+
+              {hasBothRates && measuredMultiplier !== null && diffPercent !== null && (
+                <div className="a-compare">
+                  <div className="a-compare-row">
+                    <span className="lbl">公式が謳う倍率</span>
+                    <span className="val">{OFFICIAL_MIRACLE_MULTIPLIER.toFixed(2)}倍</span>
+                  </div>
+                  <div className="a-compare-row">
+                    <span className="lbl">実測倍率({formatRate(stat.miracleRate)}% ÷ {formatRate(stat.normalRate)}%)</span>
+                    <span className="val">{measuredMultiplier.toFixed(2)}倍</span>
+                  </div>
+                  <div className={`a-diff${isBelowFloor ? '' : ' ok'}`}>
+                    {isBelowFloor
+                      ? `⚠ 公式表示を下回っています(誤差 ${diffPercent.toFixed(1)}%)`
+                      : `✓ 公式表示とほぼ一致(誤差 ${diffPercent >= 0 ? '+' : ''}${diffPercent.toFixed(1)}%)`}
+                  </div>
+                </div>
+              )}
             </div>
           );
         })}
@@ -272,8 +302,13 @@ export function Dashboard({ statsResponse, participantUsers, isMiracleTime, late
       {/* Stat Strip */}
       <div className="stat-strip">
         <div className="stat-cell"><div className="label">総サンプル数</div><div className="value num">{totalSamples.toLocaleString()}</div></div>
-        <div className="stat-cell"><div className="label">対応キューブ種</div><div className="value num">{cubeTypesUsed}</div></div>
         <div className="stat-cell"><div className="label">参加ユーザー</div><div className="value num">{participantUsers > 0 ? participantUsers.toLocaleString() : '—'}</div></div>
+        <div className="stat-cell">
+          <div className="label">直近ミラクルの乖離</div>
+          <div className={`value num${miracleDeviationCount > 0 ? ' warn' : ''}`}>
+            {miracleDeviationCount > 0 ? `要注意 ${miracleDeviationCount}件` : '問題なし'}
+          </div>
+        </div>
         <div className="stat-cell"><div className="label">最終更新</div><div className="value num" style={{ fontSize: '16px' }}>{formattedLatestUpdate ?? '—'}</div></div>
       </div>
     </div>

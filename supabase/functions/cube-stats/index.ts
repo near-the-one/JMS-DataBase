@@ -89,7 +89,7 @@ function validateParams(searchParams: URLSearchParams): Params {
     const now = new Date();
     const jstNow = new Date(now.getTime() + 9 * 60 * 60 * 1000);
     jstNow.setUTCHours(0, 0, 0, 0);
-    defaultSince = new Date(jstNow.getTime() - 30 * 24 * 60 * 60 * 1000); // 30日前 0:00 JST
+    defaultSince = new Date(jstNow.getTime() - 30 * 24 * 60 * 60 * 1000);
   }
 
   return {
@@ -130,7 +130,7 @@ async function isCurrentlyMiracleTime(supabase: any): Promise<boolean> {
   if (error) throw { status: 500, code: "INTERNAL_ERROR", error: error.message };
 
   const now = new Date();
-  const nowJst = new Date(now.getTime() + 9 * 60 * 60 * 1000); // Convert to JST
+  const nowJst = new Date(now.getTime() + 9 * 60 * 60 * 1000);
 
   return (schedules || []).some((s: any) => {
     const start = fromJstNaiveTimestamp(s.start);
@@ -140,8 +140,6 @@ async function isCurrentlyMiracleTime(supabase: any): Promise<boolean> {
 }
 
 async function aggregateStats(supabase: any, params: Params) {
-  // 必要なカラムのみ取得（機密情報を除外）
-  // grade_before/grade_after はDBに存在せず、grade_transition (1-3) で管理
   let query = supabase
     .from("cube_usage_events")
     .select("potential_type, cube_type, grade_transition, quantity_used, timestamp, created_at");
@@ -157,13 +155,11 @@ async function aggregateStats(supabase: any, params: Params) {
   const { data: events, error: evErr } = await query;
   if (evErr) throw { status: 500, code: "INTERNAL_ERROR", error: evErr.message };
 
-  // ミラクルタイムスケジュール取得
   const { data: schedules, error: schErr } = await supabase
     .from("miracle_time_schedules")
     .select("start,end");
   if (schErr) throw { status: 500, code: "INTERNAL_ERROR", error: schErr.message };
 
-  // ミラクルタイム判定ヘルパー
   const isInMiracle = (ts: string | null) => {
     if (!ts) return false;
     const time = fromJstNaiveTimestamp(ts);
@@ -174,7 +170,6 @@ async function aggregateStats(supabase: any, params: Params) {
     });
   };
 
-  // グルーピング & 集計
   const map = new Map<string, {
     potential_type: string;
     cube_type: string;
@@ -215,7 +210,6 @@ async function aggregateStats(supabase: any, params: Params) {
     if (latestCreatedAt === null || createdAt > latestCreatedAt) latestCreatedAt = createdAt;
   }
 
-  // 結果整形
   const stats = [];
   let totalRecords = 0;
   for (const agg of map.values()) {
@@ -227,7 +221,6 @@ async function aggregateStats(supabase: any, params: Params) {
     totalRecords += agg.count;
   }
 
-  // ソート
   stats.sort((a, b) => {
     if (a.potential_type !== b.potential_type) return a.potential_type.localeCompare(b.potential_type);
     if (a.cube_type !== b.cube_type) return a.cube_type.localeCompare(b.cube_type);
@@ -246,21 +239,16 @@ async function aggregateStats(supabase: any, params: Params) {
       data_period_end: dataPeriodEnd ? toJstISO(new Date(dataPeriodEnd)) : toJstISO(now),
       total_records: totalRecords,
       latest_created_at: latestCreatedAt ? toJstISO(new Date(latestCreatedAt)) : toJstISO(now),
-      cache_hint: {
-        max_age: 300,
-        stale_while_revalidate: 600,
-      },
+      cache_hint: { max_age: 300, stale_while_revalidate: 600 },
     },
   };
 }
 
 serve(async (req) => {
-  // CORS preflight
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
 
-  // ─── レート制限 ───
   const ip = req.headers.get("x-forwarded-for") || req.headers.get("cf-connecting-ip") || "unknown";
   if (!checkRateLimit(ip)) {
     return new Response(JSON.stringify({ error: "Rate limit exceeded. Max 30 requests per minute." }), {
@@ -273,7 +261,6 @@ serve(async (req) => {
     const url = new URL(req.url);
     const params = validateParams(url.searchParams);
 
-    // ─── キャッシュチェック ───
     const cacheKey = getCacheKey(params);
     const cached = getCachedStats(cacheKey);
     if (cached) {
@@ -283,12 +270,12 @@ serve(async (req) => {
       });
     }
 
+    // Use service role key to bypass RLS
     const supabase = createClient(
       Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // 並行実行で高速化
     const [aggregateResult, participantUsers, isMiracleTime] = await Promise.all([
       aggregateStats(supabase, params),
       getParticipantUsers(supabase),
@@ -301,7 +288,6 @@ serve(async (req) => {
       is_miracle_time: isMiracleTime,
     };
 
-    // ─── キャッシュ保存 ───
     setCache(cacheKey, responseData);
 
     return new Response(JSON.stringify(responseData), {

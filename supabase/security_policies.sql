@@ -38,21 +38,9 @@ CREATE POLICY "Allow anonymous insert" ON cube_usage_events
 -- ----------------------------------------------------------------------------
 -- 3. RLS POLICIES FOR miracle_time_schedules
 -- ----------------------------------------------------------------------------
-
--- Allow anonymous read
-CREATE POLICY "Allow anonymous read miracle schedules" ON miracle_time_schedules
-  FOR SELECT USING (true);
-
--- Allow anonymous insert (for admin UI)
-CREATE POLICY "Allow anonymous insert miracle schedules" ON miracle_time_schedules
-  FOR INSERT WITH CHECK (true);
-
--- Allow anonymous update/delete (for admin UI)
-CREATE POLICY "Allow anonymous update miracle schedules" ON miracle_time_schedules
-  FOR UPDATE WITH CHECK (true);
-
-CREATE POLICY "Allow anonymous delete miracle schedules" ON miracle_time_schedules
-  FOR DELETE USING (true);
+-- miracle_time_schedules は Supabase ダッシュボードからのみ管理するため、
+-- anon キーからのアクセスは不要（全権限 revoke 済み、ポリシーも作らない）
+-- Edge Function は service role key を使用するため RLS をバイパスしてアクセス可能
 
 -- ----------------------------------------------------------------------------
 -- 4. CHECK CONSTRAINTS FOR DATA INTEGRITY (cube_usage_events)

@@ -310,11 +310,6 @@ main {
   z-index: 2;
 }
 
-.prob-fill-normal.warn {
-  background: linear-gradient(90deg, var(--danger), var(--danger-deep));
-  /* 2倍未満(警告)は赤 */
-}
-
 .prob-bar-ideal-marker {
   position: absolute;
   top: -3px;
@@ -607,6 +602,185 @@ main {
   box-shadow: 0 0 8px rgba(255, 102, 0, 0.5);
 }
 
+/* Cube tab switcher (mockup: a-tabbar) */
+.a-tabbar {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  margin: 0 -32px 16px;
+  padding: 10px 32px;
+  position: sticky;
+  top: 87px;
+  z-index: 40;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--line);
+}
+
+.a-tab {
+  flex: 0 0 auto;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 9px 16px;
+  border-radius: 999px;
+  cursor: pointer;
+  border: none;
+  background: var(--paper);
+  color: var(--ink-soft);
+  white-space: nowrap;
+}
+
+.a-tab.active {
+  background: var(--ink);
+  color: #fff;
+}
+
+/* Persistent caveat banner (mockup: a-caveat) */
+.a-caveat {
+  background: var(--amber-bg);
+  border: 1px solid var(--orange-glow);
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--orange-deep);
+  line-height: 1.6;
+  margin-bottom: 24px;
+}
+
+/* Per-cube card group */
+.a-cards {
+  margin-bottom: 36px;
+}
+
+.a-cards-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.a-cards-head .name {
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.a-cards-head .type-badge {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--ink-soft);
+  background: var(--paper);
+  padding: 3px 8px;
+  border-radius: 999px;
+}
+
+.a-card {
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 22px;
+  margin-bottom: 16px;
+}
+
+.a-cardhead {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.a-title {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+
+.a-title b {
+  color: var(--ink);
+}
+
+.a-title .arrow {
+  color: var(--orange);
+}
+
+.a-n {
+  font-size: 11px;
+  font-weight: 800;
+  color: #fff;
+  background: var(--orange);
+  padding: 4px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.a-n.low {
+  background: var(--ink-soft);
+}
+
+.a-big {
+  font-family: var(--font-family-num);
+  font-weight: 900;
+  font-size: 34px;
+  color: var(--orange-deep);
+  line-height: 1;
+  margin: 8px 0 4px;
+}
+
+.a-big .sign {
+  font-size: 16px;
+  margin-left: 2px;
+}
+
+.a-sub {
+  font-size: 11.5px;
+  color: var(--ink-soft);
+  margin-bottom: 12px;
+}
+
+.a-sub.warn {
+  color: var(--danger);
+  font-weight: 700;
+}
+
+.a-compare {
+  background: var(--paper);
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-top: 12px;
+}
+
+.a-compare-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  padding: 3px 0;
+}
+
+.a-compare-row .lbl {
+  color: var(--ink-soft);
+}
+
+.a-compare-row .val {
+  font-family: var(--font-family-num);
+  font-weight: 800;
+}
+
+.a-diff {
+  margin-top: 6px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--danger);
+  background: var(--danger-bg);
+  padding: 6px 10px;
+  border-radius: 8px;
+}
+
+.a-diff.ok {
+  color: var(--good);
+  background: var(--good-bg);
+}
+
 /* Stat Strip */
 .stat-strip {
   display: grid;
@@ -635,6 +809,10 @@ main {
   font-family: var(--font-family-num);
   font-size: 24px;
   font-weight: 700;
+}
+
+.stat-cell .value.warn {
+  color: var(--danger);
 }
 
 /* Filter Panel */
@@ -941,6 +1119,35 @@ footer {
     padding: 16px;
   }
 
+  .a-tab {
+    font-size: 11.5px;
+    padding: 7px 12px;
+  }
+
+  .a-tabbar {
+    margin: 0 -12px 16px;
+    padding: 8px 12px;
+    top: 49px;
+  }
+
+  .a-caveat {
+    font-size: 11px;
+    padding: 9px 12px;
+  }
+
+  .a-card {
+    padding: 16px;
+  }
+
+  .a-big {
+    font-size: 26px;
+  }
+
+  .a-cardhead {
+    flex-direction: column;
+    gap: 6px;
+  }
+
   .prob-card-head .name {
     font-size: 12px;
   }
@@ -1031,7 +1238,8 @@ footer {
     min-width: 0;
     width: 100%;
     box-sizing: border-box;
-    font-size: 16px; /* Prevent zoom on iOS */
+    font-size: 16px;
+    /* Prevent zoom on iOS */
     padding: 12px 12px;
   }
 
