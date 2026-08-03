@@ -943,12 +943,15 @@ tbody tr:hover {
   border-radius: var(--radius);
   padding: 32px;
   box-shadow: 0 24px 50px -36px rgba(26, 20, 16, 0.2);
+  overflow-x: hidden;
+  /* 保険: 内部要素が万一はみ出しても横スクロールを起こさせない */
 }
 
 .form-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 16px;
+  min-width: 0;
 }
 
 .field {
@@ -956,6 +959,7 @@ tbody tr:hover {
   flex-direction: column;
   gap: 6px;
   margin-bottom: 16px;
+  min-width: 0;
 }
 
 .field.full {
@@ -966,6 +970,8 @@ tbody tr:hover {
 }
 
 .field label {
+  display: block;
+  /* flexアイテムの自動ブロック化に頼らず明示（ブラウザ間の解釈ブレ対策） */
   font-size: 12px;
   font-weight: 700;
   color: var(--ink);
@@ -974,6 +980,7 @@ tbody tr:hover {
 }
 
 .field input[type="datetime-local"] {
+  display: block;
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
@@ -1283,6 +1290,11 @@ footer {
     font-size: 16px;
     /* Prevent zoom on iOS */
     padding: 12px 12px;
+  }
+
+  .field input[type="datetime-local"] {
+    padding-right: 6px;
+    /* ネイティブのカレンダーアイコン分の余白を確保し、はみ出しを防ぐ */
   }
 
   .btn-primary {
