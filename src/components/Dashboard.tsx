@@ -17,7 +17,7 @@ const GROUPS: PotentialGroup[] = [
 const OFFICIAL_MIRACLE_MULTIPLIER = 2.0;
 
 /** この使用個数合計を下回るデータは「サンプル数が少ない」として、数値を薄い色にし警告文を出す */
-const LOW_SAMPLE_THRESHOLD = 500;
+const LOW_SAMPLE_THRESHOLD = 1000;
 
 function formatRate(rate: number | undefined): string {
   if (rate === undefined || rate === 0) return "—";
@@ -270,7 +270,7 @@ export function Dashboard({ statsResponse, participantUsers, isMiracleTime, late
                   {GRADE_LABELS[stat.grade_from as Grade]} <span className="arrow">→</span> <b>{GRADE_LABELS[stat.grade_to as Grade]}</b>
                 </div>
                 <div className={`a-n${isLowSample ? ' low' : ''}`}>
-                  n = {sampleQuantity > 0 ? sampleQuantity.toLocaleString() : '—'}件
+                  n = {sampleQuantity > 0 ? sampleQuantity.toLocaleString() : '—'}個
                 </div>
               </div>
               <div className="a-big" style={isLowSample ? { color: 'var(--ink-soft)' } : undefined}>
