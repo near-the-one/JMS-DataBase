@@ -229,7 +229,7 @@ async function aggregateStats(supabase: any, params: Params) {
   });
 
   const now = new Date();
-  const toJstISO = (date: Date) => date.toISOString().replace("Z", "+09:00").replace(/\.\d+/, "");
+  const toISO = (date: Date) => date.toISOString();
 
   return {
     stats,
