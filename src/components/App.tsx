@@ -106,7 +106,7 @@ function HomePage() {
         <div className="footer-inner">
           <span>JMS DataBase — コミュニティ計測による非公式データベース</span>
           <a
-            href="https://x.com/Hn2Wb"
+            href="https://x.com/jmsdatabase"
             target="_blank"
             rel="noopener noreferrer"
             className="footer-x-link"
