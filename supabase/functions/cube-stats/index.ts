@@ -234,11 +234,10 @@ async function aggregateStats(supabase: any, params: Params) {
   return {
     stats,
     meta: {
-      generated_at: toJstISO(now),
-      data_period_start: dataPeriodStart ? toJstISO(new Date(dataPeriodStart)) : toJstISO(now),
-      data_period_end: dataPeriodEnd ? toJstISO(new Date(dataPeriodEnd)) : toJstISO(now),
-      total_records: totalRecords,
-      latest_created_at: latestCreatedAt ? toJstISO(new Date(latestCreatedAt)) : toJstISO(now),
+      generated_at: toISO(now),
+      data_period_start: dataPeriodStart ? toISO(new Date(dataPeriodStart)) : toISO(now),
+      data_period_end: dataPeriodEnd ? toISO(new Date(dataPeriodEnd)) : toISO(now),
+      latest_created_at: latestCreatedAt ? toISO(new Date(latestCreatedAt)) : toISO(now),
       cache_hint: { max_age: 300, stale_while_revalidate: 600 },
     },
   };
