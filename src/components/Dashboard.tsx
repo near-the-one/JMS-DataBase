@@ -89,13 +89,26 @@ export function Dashboard({ statsResponse, participantUsers, isMiracleTime, late
   // Format the latest update time to yyyy/mm/dd hh:mm (JST)
   const formattedLatestUpdate = useMemo(() => {
     if (!latestUpdatedAt) return null;
-    // ISO format: "2026-08-02T12:34:00+09:00" or "2026-08-02T12:34:00"
-    const match = latestUpdatedAt.match(/(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):/);
-    if (match) {
-      const [, year, month, day, hours, minutes] = match;
-      return `${year}/${month}/${day} ${hours}:${minutes}`;
-    }
-    return null;
+  
+    const date = new Date(latestUpdatedAt);
+  
+    if (isNaN(date.getTime())) return null;
+  
+    const parts = new Intl.DateTimeFormat("ja-JP", {
+      timeZone: "Asia/Tokyo",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).formatToParts(date);
+  
+    const values = Object.fromEntries(
+      parts.map(({ type, value }) => [type, value])
+    );
+  
+    return `${values.year}/${values.month}/${values.day} ${values.hour}:${values.minute}`;
   }, [latestUpdatedAt]);
 
   const gradeMap: Record<number, [string, string]> = {
