@@ -960,12 +960,23 @@ tbody tr:hover {
 
 .field.full {
   grid-column: 1 / -1;
+  min-width: 0;
+  /* グリッドアイテムの初期値 min-width:auto を打ち消し、
+     datetime-local のネイティブUIの最小幅でカードからはみ出るのを防ぐ */
 }
 
 .field label {
   font-size: 12px;
   font-weight: 700;
   color: var(--ink);
+  min-width: 0;
+  /* .field(flexコンテナ)の子として縮小できるように */
+}
+
+.field input[type="datetime-local"] {
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .field .opt {
