@@ -16,8 +16,8 @@ const GROUPS: PotentialGroup[] = [
 /** 公式が謳う「ミラクルタイムは通常時の2倍」という表示値。実測倍率との比較基準として使う。 */
 const OFFICIAL_MIRACLE_MULTIPLIER = 2.0;
 
-/** この件数を下回るデータは「サンプル数が少ない」として、数値を薄い色にし警告文を出す */
-const LOW_SAMPLE_THRESHOLD = 50;
+/** この使用個数合計を下回るデータは「サンプル数が少ない」として、数値を薄い色にし警告文を出す */
+const LOW_SAMPLE_THRESHOLD = 500;
 
 function formatRate(rate: number | undefined): string {
   if (rate === undefined || rate === 0) return "—";
@@ -103,6 +103,7 @@ export function Dashboard({ statsResponse, participantUsers, isMiracleTime, late
     2: ["epic", "unique"],
     3: ["unique", "legendary"],
   };
+
   type StatMapEntry = {
     potential_type: string;
     cube_type: string;
@@ -112,6 +113,8 @@ export function Dashboard({ statsResponse, participantUsers, isMiracleTime, late
     miracle_rate: number;
     normal_count: number;
     miracle_count: number;
+    normal_quantity: number;
+    miracle_quantity: number;
   };
 
   // 通常時・ミラクルタイム両方のレートを持つ単一の statMap を作成
@@ -130,15 +133,19 @@ export function Dashboard({ statsResponse, participantUsers, isMiracleTime, late
           miracle_rate: 0,
           normal_count: 0,
           miracle_count: 0,
+          normal_quantity: 0,
+          miracle_quantity: 0,
         });
       }
       const entry = map.get(key)!;
       if (s.isMiracle) {
         entry.miracle_rate = s.supply_rate;
         entry.miracle_count = s.count;
+        entry.miracle_quantity = s.total_quantity;
       } else {
         entry.normal_rate = s.supply_rate;
         entry.normal_count = s.count;
+        entry.normal_quantity = s.total_quantity;
       }
     }
     return map;
@@ -153,6 +160,8 @@ export function Dashboard({ statsResponse, participantUsers, isMiracleTime, late
     miracleRate: number;
     normalCount: number;
     miracleCount: number;
+    normalQuantity: number;
+    miracleQuantity: number;
   };
 
   // 全キューブ分の遷移統計（タブ表示・統計サマリの両方に使う）
@@ -177,6 +186,8 @@ export function Dashboard({ statsResponse, participantUsers, isMiracleTime, late
             miracleRate: stat?.miracle_rate ?? 0,
             normalCount: stat?.normal_count ?? 0,
             miracleCount: stat?.miracle_count ?? 0,
+            normalQuantity: stat?.normal_quantity ?? 0,
+            miracleQuantity: stat?.miracle_quantity ?? 0,
           });
         }
       }
@@ -244,8 +255,8 @@ export function Dashboard({ statsResponse, participantUsers, isMiracleTime, late
 
         {activeStats.map((stat) => {
           const displayRate = isMiracleTime ? stat.miracleRate : stat.normalRate;
-          const sampleCount = stat.normalCount + stat.miracleCount;
-          const isLowSample = sampleCount > 0 && sampleCount < LOW_SAMPLE_THRESHOLD;
+          const sampleQuantity = stat.normalQuantity + stat.miracleQuantity;
+          const isLowSample = sampleQuantity > 0 && sampleQuantity < LOW_SAMPLE_THRESHOLD;
           const { hasBothRates, isBelowFloor } = getRateHealth(stat.normalRate, stat.miracleRate);
           const measuredMultiplier = hasBothRates ? stat.miracleRate / stat.normalRate : null;
           const diffPercent = measuredMultiplier !== null
@@ -259,24 +270,20 @@ export function Dashboard({ statsResponse, participantUsers, isMiracleTime, late
                   {GRADE_LABELS[stat.grade_from as Grade]} <span className="arrow">→</span> <b>{GRADE_LABELS[stat.grade_to as Grade]}</b>
                 </div>
                 <div className={`a-n${isLowSample ? ' low' : ''}`}>
-                  n = {sampleCount > 0 ? sampleCount.toLocaleString() : '—'}件
+                  n = {sampleQuantity > 0 ? sampleQuantity.toLocaleString() : '—'}件
                 </div>
               </div>
-
               <div className="a-big" style={isLowSample ? { color: 'var(--ink-soft)' } : undefined}>
                 {formatRate(displayRate)}<span className="sign">%</span>
               </div>
-
               {isLowSample ? (
                 <div className="a-sub warn">⚠ サンプル数が少なく、実際の確率と大きく異なる可能性があります</div>
               ) : (
                 <div className="a-sub">
-                  {isMiracleTime ? 'ミラクルタイムの実測値' : '通常時の実測値'}(合計{sampleCount.toLocaleString()}件の使用データより算出)
+                  {isMiracleTime ? 'ミラクルタイムの実測値' : '通常時の実測値'}(合計{sampleQuantity.toLocaleString()}個の使用データより算出)
                 </div>
               )}
-
               <CompareBar normalRate={stat.normalRate} miracleRate={stat.miracleRate} />
-
               {hasBothRates && measuredMultiplier !== null && diffPercent !== null && (
                 <div className="a-compare">
                   <div className="a-compare-row">
