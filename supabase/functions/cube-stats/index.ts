@@ -206,7 +206,7 @@ async function aggregateStats(supabase: any, params: Params) {
     if (dataPeriodStart === null || ts < dataPeriodStart) dataPeriodStart = ts;
     if (dataPeriodEnd === null || ts > dataPeriodEnd) dataPeriodEnd = ts;
 
-    const createdAt = Number(r.created_at) || 0;
+    const createdAt = new Date(r.created_at).getTime();
     if (latestCreatedAt === null || createdAt > latestCreatedAt) latestCreatedAt = createdAt;
   }
 
