@@ -17,6 +17,7 @@ function HomePage() {
   const [dialogType, setDialogType] = useState<'error' | 'success'>('error');
   const [dialogMessage, setDialogMessage] = useState('');
   const [activeTab, setActiveTab] = useState<'dashboard' | 'register'>('dashboard');
+  const [fabModalOpen, setFabModalOpen] = useState(false);
 
   // 統計データは親で保持し、タブ切り替えでも再フェッチしない
   const { data: statsResponse, participantUsers, isMiracleTime } = useCubeStats({
@@ -45,6 +46,7 @@ function HomePage() {
         .then(() => {
           showSuccess('登録が成功しました');
           setFormResetKey((k) => k + 1);
+          setFabModalOpen(false);
         })
         .catch((err: Error) => showError(err.message));
     },
@@ -55,7 +57,7 @@ function HomePage() {
     <>
       <MessageDialog open={dialogOpen} type={dialogType} message={dialogMessage} onClose={() => setDialogOpen(false)} />
       <header>
-        <a href="/" className="logo"><img src="/assets/site-icons/サイトロゴ2.png" alt="みんなで作る！きのこデータベース" style={{ height: '70px', maxHeight: '70px' }} /></a>
+        <a href="/" className="logo"><img src="/assets/site-icons/サイトロゴ2.png" alt="JMS DataBase" style={{ height: '70px', maxHeight: '70px' }} /></a>
         <nav>
           <button
             role="tab"
@@ -102,11 +104,52 @@ function HomePage() {
           </>
         )}
       </main>
+
+      {/* Floating Action Button: ダッシュボードを見ながら離脱せず登録できるようにモーダルで開く */}
+      {activeTab !== 'register' && (
+        <button
+          type="button"
+          className="fab"
+          onClick={() => setFabModalOpen(true)}
+          aria-label="キューブ使用データを登録する"
+        >
+          <span className="fab-plus">＋</span>
+        </button>
+      )}
+
+      {fabModalOpen && (
+        <div className="fab-modal-overlay" onClick={() => setFabModalOpen(false)}>
+          <div className="fab-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="fab-modal-head">
+              <div>
+                <div className="eyebrow">SUBMIT DATA</div>
+                <h2>キューブ使用データ登録</h2>
+              </div>
+              <button
+                type="button"
+                className="fab-modal-close"
+                onClick={() => setFabModalOpen(false)}
+                aria-label="閉じる"
+              >
+                ×
+              </button>
+            </div>
+            <div className="form-card">
+              <ManualEntryForm
+                key={`fab-${formResetKey}`}
+                onSubmit={handleSubmit}
+                initialData={{}}
+                editId={undefined}
+              />
+            </div>
+          </div>
+        </div>
+      )}
       <footer>
         <div className="footer-inner">
-          <span>みんなで作る！きのこデータベース — コミュニティ計測による非公式データベース</span>
+          <span>JMS DataBase — コミュニティ計測による非公式データベース</span>
           <a
-            href="https://x.com/jmsdatabase"
+            href="https://x.com/Hn2Wb"
             target="_blank"
             rel="noopener noreferrer"
             className="footer-x-link"

@@ -383,7 +383,7 @@ export function ManualEntryForm({
         {/* 結果（成功/失敗）。失敗データも登録できるようにして生存バイアスを防ぐ */}
         <div className="field full">
           <label>
-            結果<span className="field-badge">NEW</span>
+            結果
           </label>
           <div className="result-segwrap" role="group" aria-label="結果">
             <button

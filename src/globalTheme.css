@@ -102,6 +102,34 @@ nav {
   color: #fff;
 }
 
+/* B案: 登録タブだけ塗りつぶし+バッジで視覚的優先度を上げる（DOM順は変更しない、2番目のnavtab = 登録フォーム） */
+nav .navtab:nth-child(2) {
+  position: relative;
+  background: linear-gradient(100deg, var(--orange), var(--orange-deep));
+  color: #fff;
+  padding-right: 60px;
+  box-shadow: 0 8px 18px -12px rgba(226, 79, 0, 0.6);
+}
+
+nav .navtab:nth-child(2).active {
+  background: var(--orange-deep);
+}
+
+nav .navtab:nth-child(2)::after {
+  content: "所要30秒";
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 8px;
+  font-weight: 800;
+  color: #fff;
+  background: rgba(255, 255, 255, 0.28);
+  padding: 3px 7px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
 .btn-login {
   font-weight: 700;
   font-size: 13px;
@@ -1393,6 +1421,123 @@ footer {
 
 .footer-x-link:hover {
   color: var(--orange-deep);
+}
+
+/* D案: フローティングアクションボタン + モーダル登録フォーム */
+.fab {
+  position: fixed;
+  right: 22px;
+  bottom: 22px;
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  border: none;
+  cursor: pointer;
+  background: linear-gradient(135deg, var(--orange), var(--orange-deep));
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 14px 30px -12px rgba(226, 79, 0, 0.65);
+  z-index: 60;
+  animation: fab-pulse 2.2s infinite;
+}
+
+.fab-plus {
+  font-size: 28px;
+  font-weight: 700;
+  line-height: 1;
+  margin-top: -2px;
+}
+
+@keyframes fab-pulse {
+  0% {
+    box-shadow: 0 14px 30px -12px rgba(226, 79, 0, 0.65), 0 0 0 0 rgba(226, 79, 0, 0.5);
+  }
+
+  70% {
+    box-shadow: 0 14px 30px -12px rgba(226, 79, 0, 0.65), 0 0 0 14px rgba(226, 79, 0, 0);
+  }
+
+  100% {
+    box-shadow: 0 14px 30px -12px rgba(226, 79, 0, 0.65), 0 0 0 0 rgba(226, 79, 0, 0);
+  }
+}
+
+.fab-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(26, 20, 16, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 70;
+}
+
+.fab-modal {
+  width: 100%;
+  max-width: 640px;
+  max-height: 88vh;
+  overflow-y: auto;
+  background: var(--paper);
+  border-radius: var(--radius);
+  padding: 20px;
+}
+
+.fab-modal-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.fab-modal-head h2 {
+  font-size: 19px;
+  margin: 4px 0 0;
+  font-weight: 900;
+}
+
+.fab-modal-close {
+  border: none;
+  background: var(--white);
+  border: 1px solid var(--line);
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--ink-soft);
+  flex-shrink: 0;
+}
+
+.fab-modal .form-card {
+  padding: 0;
+  border: none;
+  box-shadow: none;
+}
+
+.fab-modal .field select,
+.fab-modal .field input {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+@media (max-width: 768px) {
+  .fab {
+    right: 16px;
+    bottom: 16px;
+    width: 52px;
+    height: 52px;
+  }
+
+  .fab-modal {
+    padding: 16px;
+    max-height: 92vh;
+  }
 }
 
 /* Error message styles for forms */
