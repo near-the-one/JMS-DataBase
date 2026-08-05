@@ -18,6 +18,11 @@
   --danger: #ff2424;
   --danger-deep: #d340e7;
   --danger-bg: #FDECEC;
+  /* 等級カラー（レア=青 / エピック=紫 / ユニーク=黄 / レジェンダリー=緑） */
+  --grade-rare: #4F8CFF;
+  --grade-epic: #9B6BFF;
+  --grade-unique: #EAB308;
+  --grade-legendary: #16A34A;
   --font-family-sans: 'Noto Sans JP', sans-serif;
   --font-family-num: 'Orbitron', sans-serif;
   --font-size-base: 16px;
@@ -254,6 +259,259 @@ main {
   border-radius: 999px;
   white-space: nowrap;
   margin-top: 2px;
+}
+
+/* 等級チップ（レア=青 / エピック=紫 / ユニーク=黄 / レジェンダリー=緑）
+   文字色だけでなく、色付きの略記号バッジ([R]/[E]/[U]/[L])を添えて視覚的に見分けやすくする */
+.grade-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 700;
+}
+
+.grade-chip-letter {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  font-size: 10px;
+  font-weight: 800;
+  font-family: var(--font-family-num);
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.grade-chip.grade-rare {
+  color: var(--grade-rare);
+}
+
+.grade-chip.grade-rare .grade-chip-letter {
+  background: var(--grade-rare);
+}
+
+.grade-chip.grade-epic {
+  color: var(--grade-epic);
+}
+
+.grade-chip.grade-epic .grade-chip-letter {
+  background: var(--grade-epic);
+}
+
+.grade-chip.grade-unique {
+  color: var(--grade-unique);
+}
+
+.grade-chip.grade-unique .grade-chip-letter {
+  background: var(--grade-unique);
+}
+
+.grade-chip.grade-legendary {
+  color: var(--grade-legendary);
+}
+
+.grade-chip.grade-legendary .grade-chip-letter {
+  background: var(--grade-legendary);
+}
+
+/* ===== Option A: キューブ種タブ + 等級遷移カード ===== */
+.cube-tabbar {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  margin-bottom: 14px;
+}
+
+.cube-tab {
+  flex: 0 0 auto;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--ink-soft);
+  padding: 8px 16px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--white);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.cube-tab.active {
+  background: var(--ink);
+  color: #fff;
+  border-color: var(--ink);
+}
+
+.cube-caveat {
+  background: var(--amber-bg);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 9px 12px;
+  font-size: 11.5px;
+  color: var(--orange-deep);
+  font-weight: 600;
+  margin-bottom: 16px;
+}
+
+.cube-card-head-strip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.cube-card-head-strip .name {
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.cube-card-head-strip .type-badge {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--ink-soft);
+  background: var(--paper);
+  padding: 3px 8px;
+  border-radius: 999px;
+}
+
+.cube-card-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-bottom: 36px;
+}
+
+.cube-card {
+  background: var(--white);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 20px;
+}
+
+.cube-grade {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.cube-grade-title {
+  font-size: 13.5px;
+  font-weight: 700;
+}
+
+.cube-grade-title .arrow {
+  color: var(--ink-soft);
+  font-weight: 400;
+}
+
+.cube-n-badge {
+  font-size: 10.5px;
+  font-weight: 800;
+  color: #fff;
+  background: var(--orange);
+  padding: 3px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.cube-n-badge.low {
+  background: var(--ink-soft);
+}
+
+.cube-row {
+  margin-bottom: 8px;
+}
+
+.cube-toplabel {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--ink-soft);
+  margin-bottom: 5px;
+}
+
+.cube-toplabel b {
+  color: var(--ink);
+  font-size: 14px;
+  font-family: var(--font-family-num);
+}
+
+.cube-track {
+  position: relative;
+  height: 16px;
+  background: var(--paper);
+  border-radius: 8px;
+  overflow: visible;
+}
+
+.cube-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  border-radius: 8px;
+  transition: width 0.3s ease;
+}
+
+.cube-fill.normal {
+  background: #B8B2A4;
+}
+
+.cube-fill.miracle {
+  background: linear-gradient(90deg, var(--orange-deep), var(--orange));
+}
+
+.cube-refline {
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  width: 2px;
+  background: var(--ink);
+}
+
+.cube-refline.warn {
+  background: var(--danger);
+}
+
+.cube-reflabel {
+  position: absolute;
+  top: -18px;
+  transform: translateX(-50%);
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+.cube-verdict {
+  margin-top: 12px;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 7px 10px;
+  border-radius: 8px;
+}
+
+.cube-verdict.ok {
+  color: var(--good);
+  background: var(--good-bg);
+}
+
+.cube-verdict.bad {
+  color: var(--danger);
+  background: var(--danger-bg);
+}
+
+.cube-lowsample {
+  margin-top: 4px;
+  font-size: 11px;
+  color: var(--orange-deep);
+  background: var(--amber-bg);
+  padding: 9px 10px;
+  border-radius: 8px;
+  font-weight: 600;
+  line-height: 1.6;
 }
 
 /* Prob Rows */
@@ -990,6 +1248,68 @@ tbody tr:hover {
   font-weight: 400;
   color: var(--ink-soft);
   font-size: 11px;
+}
+
+.field-hint {
+  font-size: 10.5px;
+  color: var(--ink-soft);
+  margin: 6px 0 0;
+  line-height: 1.6;
+}
+
+.field-badge {
+  display: inline-block;
+  font-size: 9px;
+  font-weight: 800;
+  color: #fff;
+  background: var(--orange);
+  padding: 2px 7px;
+  border-radius: 999px;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+.result-segwrap {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.result-seg {
+  flex: 1;
+  text-align: center;
+  padding: 14px 8px;
+  border-radius: 12px;
+  border: 2px solid var(--line);
+  background: var(--paper);
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+
+.result-seg.success.active {
+  border-color: var(--good);
+  background: var(--good-bg);
+  color: var(--good);
+}
+
+.result-seg.fail.active {
+  border-color: var(--danger);
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+.field-encourage {
+  margin-top: 10px;
+  background: var(--amber-bg);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 8px 10px;
+  font-size: 10.5px;
+  color: var(--orange-deep);
+  font-weight: 600;
+  line-height: 1.6;
 }
 
 .field select,

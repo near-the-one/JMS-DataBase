@@ -27,7 +27,7 @@ export function Layout({
     <>
       <header>
         <div className="logo">
-          <span className="logo-dot"></span>JMS DataBase
+          <span className="logo-dot"></span>みんなで作る！きのこデータベース
         </div>
         <nav role="tablist" aria-label="メインナビゲーション">
           <button
@@ -68,7 +68,7 @@ export function Layout({
       </main>
 
       <footer>
-        JMS DataBase — コミュニティ計測による非公式データベース
+        みんなで作る！きのこデータベース — コミュニティ計測による非公式データベース
       </footer>
     </>
   );

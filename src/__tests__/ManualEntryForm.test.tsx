@@ -32,9 +32,9 @@ describe("Phase1: ManualEntryForm", () => {
       expect(screen.queryByLabelText(/キューブ/)).toBeInTheDocument();
     });
 
-    it("等級遷移の選択欄が表示されること", () => {
+    it("挑戦した等級の選択欄が表示されること", () => {
       render(<ManualEntryForm onSubmit={vi.fn()} />);
-      expect(screen.queryByLabelText(/等級遷移/)).toBeInTheDocument();
+      expect(screen.queryByLabelText(/挑戦した等級/)).toBeInTheDocument();
     });
 
     it("使用個数の入力欄が表示されること（type=number）", () => {
@@ -114,8 +114,12 @@ describe("Phase1: ManualEntryForm", () => {
       const cubeSelect = screen.getByLabelText(/キューブ/);
       fireEvent.change(cubeSelect, { target: { value: "neo" } });
 
-      const gradeTransitionSelect = screen.getByLabelText(/等級遷移/);
-      fireEvent.change(gradeTransitionSelect, { target: { value: "rare-epic" } });
+      const gradeBeforeSelect = screen.getByLabelText(/挑戦した等級/);
+      fireEvent.change(gradeBeforeSelect, { target: { value: "rare" } });
+
+      // 結果を「上昇した（success）」に設定
+      const resultSuccessBtn = screen.getByRole("button", { name: /上昇した/ });
+      fireEvent.click(resultSuccessBtn);
 
       const quantityInput = screen.getByLabelText(/使用個数/);
       fireEvent.change(quantityInput, { target: { value: "5" } });
@@ -134,6 +138,7 @@ describe("Phase1: ManualEntryForm", () => {
       expect(callArgs.grade_before).toBe("rare");
       expect(callArgs.grade_after).toBe("epic");
       expect(callArgs.quantity_used).toBe(5);
+      expect(callArgs.result).toBe("success");
     });
 
     it("部位に weapon を選択して送信すると part=weapon が送信されること", async () => {
@@ -227,14 +232,14 @@ describe("Phase1: ManualEntryForm", () => {
       });
     });
 
-    it("等級遷移が逆（epic→rare）の場合エラーが表示されること", async () => {
+    it("無効な等級（legendary等）が選択肢に含まれないこと", async () => {
       render(<ManualEntryForm onSubmit={vi.fn()} />);
-      const gradeTransitionSelect = screen.getByLabelText(/等級遷移/);
-      // The select only has valid options (rare-epic, epic-unique, unique-legendary)
-      // So we verify that invalid transitions cannot be selected via UI
-      const options = Array.from((gradeTransitionSelect as HTMLSelectElement).options).map((o) => o.value);
-      expect(options).toEqual(["rare-epic", "epic-unique", "unique-legendary"]);
-      // Since the UI prevents invalid values, the order validation is effectively tested by the options
+      const gradeBeforeSelect = screen.getByLabelText(/挑戦した等級/);
+      // The select only has valid options (rare, epic, unique)
+      // So we verify that invalid grades cannot be selected via UI
+      const options = Array.from((gradeBeforeSelect as HTMLSelectElement).options).map((o) => o.value);
+      expect(options).toEqual(["rare", "epic", "unique"]);
+      // Since the UI prevents invalid values, the validation is effectively tested by the options
     });
   });
 
@@ -273,7 +278,7 @@ describe("Phase1: ManualEntryForm", () => {
       expect(partSelect.value).toBe("gloves");
     });
 
-    it("初期データに timestamp が含まれる場合、使用日時入力欄に反映されていること", () => {
+    it("初期データに timestamp が含まれる場合、使用日時入力欄にJSTで反映されていること", () => {
       const initialData: Partial<ManualEntryInput> = {
         server_name: "かえで",
         potential_type: "potential",
@@ -286,8 +291,8 @@ describe("Phase1: ManualEntryForm", () => {
       render(<ManualEntryForm onSubmit={vi.fn()} initialData={initialData} editId={1} />);
 
       const timestampInput = screen.getByLabelText(/使用日時/) as HTMLInputElement;
-      // Expect the value to be formatted as YYYY-MM-DDTHH:MM in UTC
-      expect(timestampInput.value).toBe("2022-07-29T10:40");
+      // Timestamp is converted to JST (UTC+9), so 10:40 UTC becomes 19:40 JST
+      expect(timestampInput.value).toBe("2022-07-29T19:40");
     });
 
     it("編集モードではボタン文言が「更新」になること", () => {

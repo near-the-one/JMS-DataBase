@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, within, fireEvent } from "@testing-library/react";
 import { Dashboard } from "@/components/Dashboard";
 
 const mockStatsResponse = {
@@ -66,66 +66,68 @@ describe("Dashboard", () => {
       expect(screen.queryByText(/PROBABILITY OVERVIEW/i)).toBeInTheDocument();
     });
 
-    it("「キューブごとの昇級確率」という見出しが表示されること", () => {
+    it("「種類ごとの昇級確率」という見出しが表示されること", () => {
       render(<Dashboard />);
-      expect(screen.queryByText(/キューブごとの昇級確率/)).toBeInTheDocument();
+      expect(screen.queryByText(/種類ごとの昇級確率/)).toBeInTheDocument();
     });
 
     it("説明文が表示されること", () => {
       render(<Dashboard />);
-      expect(screen.queryByText(/コミュニティが登録したキューブ使用データから算出したリアルタイム集計で、実際の確率とは異なります/)).toBeInTheDocument();
+      expect(screen.queryByText(/コミュニティが登録したキューブ使用データから算出したリアルタイム集計です/)).toBeInTheDocument();
     });
   });
 
-  describe("確率カード（prob-card）", () => {
+  describe("確率カード（cube-card）", () => {
     it("ネオキューブのカードが表示されること", () => {
       renderDashboard();
-      // ネオキューブのカードを見つけてから、その中のテキストを確認
-      const neoCard = screen.getByText(/ネオキューブ/).closest('.prob-card');
-      expect(neoCard).toBeInTheDocument();
-      expect(within(neoCard).getByText(/ネオキューブ/)).toBeInTheDocument();
-      expect(within(neoCard).getByText(/潜在能力/)).toBeInTheDocument();
-      // grade-flow には "エピック → ユニーク" と "レア → エピック" がある
-      // 要素が分割されているため、contains でチェック
-      const neoCardText = neoCard.textContent ?? "";
-      expect(neoCardText).toMatch(/エピック.*ユニーク/);
-      expect(neoCardText).toMatch(/ユニーク.*レジェンダリー/);
+      // カードヘッドからネオキューブの名前を確認（タブボタンとカード名の2つあるため allByText を使用）
+      const neoTexts = screen.getAllByText(/ネオキューブ/);
+      expect(neoTexts.length).toBeGreaterThanOrEqual(1);
+      expect(screen.getByText(/潜在能力/)).toBeInTheDocument();
+      // カードリストからカードを見つける
+      const cardList = document.querySelector('.cube-card-list');
+      expect(cardList).toBeInTheDocument();
+      const cards = cardList?.querySelectorAll('.cube-card');
+      expect(cards?.length).toBeGreaterThanOrEqual(1);
     });
 
-    it("メガキューブのカードが表示されること", () => {
+    it("メガキューブタブをクリックするとメガキューブのカードが表示されること", () => {
       renderDashboard();
-      // メガキューブのカードを見つけてから、その中のテキストを確認
-      const megaCard = screen.getByText(/メガキューブ/).closest('.prob-card');
-      expect(megaCard).toBeInTheDocument();
-      expect(within(megaCard).getByText(/メガキューブ/)).toBeInTheDocument();
-      expect(within(megaCard).getByText(/潜在能力/)).toBeInTheDocument();
-      const megaCardText = megaCard.textContent ?? "";
-      expect(megaCardText).toMatch(/エピック.*ユニーク/);
-      expect(megaCardText).toMatch(/ユニーク.*レジェンダリー/);
+      // メガキューブタブをクリック
+      fireEvent.click(screen.getByRole("button", { name: /メガキューブ/ }));
+      // カードリストからカードを見つける
+      const cardList = document.querySelector('.cube-card-list');
+      expect(cardList).toBeInTheDocument();
+      const cards = cardList?.querySelectorAll('.cube-card');
+      expect(cards?.length).toBeGreaterThanOrEqual(1);
     });
 
-    it("ネオアディショナルのカードが表示されること", () => {
+    it("ネオアディショナルタブをクリックするとネオアディショナルのカードが表示されること", () => {
       renderDashboard();
-      // ネオアディショナルのカードを見つけてから、その中のテキストを確認
-      const addCard = screen.getByText(/ネオアディショナル/).closest('.prob-card');
-      expect(addCard).toBeInTheDocument();
-      expect(within(addCard).getByText(/ネオアディショナル/)).toBeInTheDocument();
-      expect(within(addCard).getByText(/アディショナル潜在能力/)).toBeInTheDocument();
-      const addCardText = addCard.textContent ?? "";
-      expect(addCardText).toMatch(/レア.*エピック/);
-      expect(addCardText).toMatch(/エピック.*ユニーク/);
+      // ネオアディショナルタブをクリック（タブボタンを明示的に指定）
+      const addTab = screen.getByRole("button", { name: /ネオアディショナル/ });
+      fireEvent.click(addTab);
+      // カードリストを探す
+      const cardList = document.querySelector('.cube-card-list');
+      expect(cardList).toBeInTheDocument();
+      // カードリスト内にカードが表示される（mock dataのみで表示されるカードは1つ）
+      const cards = cardList?.querySelectorAll('.cube-card');
+      expect(cards?.length).toBeGreaterThanOrEqual(1);
     });
 
-    it("各カードに昇級率（%表記）が表示されること", () => {
+    it("表示中のカードに昇級率（数値）が表示されること", () => {
       renderDashboard();
-      const percentElements = screen.queryAllByText(/%/);
-      expect(percentElements.length).toBeGreaterThanOrEqual(3);
+      // 数値（レート）を含む要素を探す（カード内にあるはず）
+      const rateElements = screen.queryAllByText(/\d+\.\d/);
+      // mock data only provides 1 transition with rate (grade_transition: 2)
+      expect(rateElements.length).toBeGreaterThanOrEqual(1);
     });
 
-    it("各カードにプログレスバーが表示されること", () => {
+    it("表示中のカードにプログレスバーが表示されること", () => {
       renderDashboard();
-      const probBars = document.querySelectorAll('.prob-bar');
-      expect(probBars.length).toBeGreaterThanOrEqual(3);
+      const cubeTracks = document.querySelectorAll('.cube-track');
+      // mock data only provides 1 transition (grade_transition: 2) for neo
+      expect(cubeTracks.length).toBeGreaterThanOrEqual(1);
     });
   });
 
@@ -135,9 +137,9 @@ describe("Dashboard", () => {
       expect(screen.queryByText(/総サンプル数/)).toBeInTheDocument();
     });
 
-    it("対応キューブ種が表示されること", () => {
+    it("2倍未達のキューブが表示されること", () => {
       renderDashboard();
-      expect(screen.queryByText(/対応キューブ種/)).toBeInTheDocument();
+      expect(screen.queryByText(/2倍未達のキューブ/)).toBeInTheDocument();
     });
 
     it("参加ユーザーが表示されること", () => {

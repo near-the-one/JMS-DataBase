@@ -80,7 +80,7 @@ describe("App", () => {
         expect(screen.getByText(/PROBABILITY OVERVIEW/i)).toBeInTheDocument();
       });
       // Header logo should be present - check for the logo image alt text
-      expect(screen.getByAltText("JMS DataBase")).toBeInTheDocument();
+      expect(screen.getByAltText("みんなで作る！きのこデータベース")).toBeInTheDocument();
     });
 
     it("ヘッダーにロゴとナビタブが表示されること", async () => {
@@ -90,7 +90,7 @@ describe("App", () => {
         expect(screen.getByText(/PROBABILITY OVERVIEW/i)).toBeInTheDocument();
       });
       // Check header specifically
-      expect(screen.getByAltText("JMS DataBase")).toBeInTheDocument();
+      expect(screen.getByAltText("みんなで作る！きのこデータベース")).toBeInTheDocument();
       expect(screen.getByRole("tab", { name: /ダッシュボード/ })).toBeInTheDocument();
       expect(screen.getByRole("tab", { name: /登録フォーム/ })).toBeInTheDocument();
     });
@@ -101,10 +101,10 @@ describe("App", () => {
       await waitFor(() => {
         expect(screen.getByText(/PROBABILITY OVERVIEW/i)).toBeInTheDocument();
       });
-      const dashboardView = screen.getByTestId("view-dashboard");
-      expect(within(dashboardView).getByText(/ネオキューブ/)).toBeInTheDocument();
-      expect(within(dashboardView).getByText(/メガキューブ/)).toBeInTheDocument();
-      expect(within(dashboardView).getByText(/ネオアディショナル/)).toBeInTheDocument();
+      expect(screen.getByText(/種類ごとの昇級確率/i)).toBeInTheDocument();
+      expect(screen.getAllByText(/ネオキューブ/)).toHaveLength(2); // tab button + card name
+      expect(screen.getByText(/メガキューブ/)).toBeInTheDocument();
+      expect(screen.getByText(/ネオアディショナル/)).toBeInTheDocument();
     });
 
     it("統計ストリップが表示されること", async () => {
@@ -114,8 +114,8 @@ describe("App", () => {
         expect(screen.getByText(/PROBABILITY OVERVIEW/i)).toBeInTheDocument();
       });
       expect(screen.getByText(/総サンプル数/)).toBeInTheDocument();
-      expect(screen.getByText(/対応キューブ種/)).toBeInTheDocument();
       expect(screen.getByText(/参加ユーザー/)).toBeInTheDocument();
+      expect(screen.getByText(/2倍未達のキューブ/)).toBeInTheDocument();
       expect(screen.getByText(/最終更新/)).toBeInTheDocument();
     });
 
@@ -136,8 +136,7 @@ describe("App", () => {
       await waitFor(() => {
         expect(screen.getByText(/PROBABILITY OVERVIEW/i)).toBeInTheDocument();
       });
-      const dashboardView = screen.getByTestId("view-dashboard");
-      const numbers = within(dashboardView).queryAllByText(/\d+/);
+      const numbers = screen.queryAllByText(/\d+/);
       expect(numbers.length).toBeGreaterThan(0);
     });
 
@@ -147,8 +146,7 @@ describe("App", () => {
       await waitFor(() => {
         expect(screen.getByText(/PROBABILITY OVERVIEW/i)).toBeInTheDocument();
       });
-      const dashboardView = screen.getByTestId("view-dashboard");
-      expect(within(dashboardView).queryAllByText(/%/).length).toBeGreaterThan(0);
+      expect(screen.queryAllByText(/%/).length).toBeGreaterThan(0);
     });
 
     it("等級遷移（レア→エピックなど）が表示されていること", async () => {
@@ -157,10 +155,8 @@ describe("App", () => {
       await waitFor(() => {
         expect(screen.getByText(/PROBABILITY OVERVIEW/i)).toBeInTheDocument();
       });
-      const dashboardView = screen.getByTestId("view-dashboard");
-      // Check that grade-flow elements exist with appropriate text
-      const gradeFlows = dashboardView.querySelectorAll('.grade-flow');
-      expect(gradeFlows.length).toBeGreaterThanOrEqual(3);
+      // Check for grade transition text
+      expect(screen.getByText(/レア/).parentElement?.textContent).toContain("エピック");
     });
   });
 
@@ -172,11 +168,11 @@ describe("App", () => {
         expect(screen.getByText(/PROBABILITY OVERVIEW/i)).toBeInTheDocument();
       });
       // Header logo - use getByAltText for the banner/logo
-      expect(screen.getByAltText("JMS DataBase")).toBeInTheDocument();
-      const dashboardView = screen.getByTestId("view-dashboard");
-      expect(within(dashboardView).getByText(/ネオキューブ/)).toBeInTheDocument();
-      expect(within(dashboardView).getByText(/メガキューブ/)).toBeInTheDocument();
-      expect(within(dashboardView).getByText(/ネオアディショナル/)).toBeInTheDocument();
+      expect(screen.getByAltText("みんなで作る！きのこデータベース")).toBeInTheDocument();
+      expect(screen.getByText(/種類ごとの昇級確率/i)).toBeInTheDocument();
+      expect(screen.getAllByText(/ネオキューブ/)).toHaveLength(2);
+      expect(screen.getByText(/メガキューブ/)).toBeInTheDocument();
+      expect(screen.getByText(/ネオアディショナル/)).toBeInTheDocument();
       expect(screen.getByText(/PROBABILITY OVERVIEW/i)).toBeInTheDocument();
     });
 
@@ -189,7 +185,7 @@ describe("App", () => {
       const bodyText = document.body.textContent ?? "";
 
       // Header elements (always visible)
-      expect(bodyText).toMatch(/JMS DataBase/i);
+      expect(bodyText).toMatch(/みんなで作る！きのこデータベース/i);
       expect(bodyText).toMatch(/ダッシュボード/);
       expect(bodyText).toMatch(/登録フォーム/);  // テストでは登録フォームが表示されている
 
@@ -205,14 +201,14 @@ describe("App", () => {
       expect(bodyText).toMatch(/ユニーク/);
       expect(bodyText).toMatch(/レジェンダリー/);
       expect(bodyText).toMatch(/総サンプル数/);
-      expect(bodyText).toMatch(/対応キューブ種/);
+      expect(bodyText).toMatch(/2倍未達のキューブ/);
       expect(bodyText).toMatch(/参加ユーザー/);
       expect(bodyText).toMatch(/最終更新/);
       expect(bodyText).toMatch(/ミラクルタイム開催中/);
     });
   });
 
-  describe("Phase1: 手入力フォーム・一覧・ダッシュボード統合", () => {
+  describe("Phase1: 手入力フォーム・ダッシュボード統合", () => {
     describe("正常登録（ホーム画面）", () => {
       beforeEach(async () => {
         renderHomePage();
@@ -221,12 +217,11 @@ describe("App", () => {
           expect(screen.getByText(/PROBABILITY OVERVIEW/i)).toBeInTheDocument();
         });
         // Switch to form tab
-        fireEvent.click(screen.getByRole("tab", { name: /データ登録/ }));
-        const formView = screen.getByTestId("view-form");
-        expect(formView).not.toHaveAttribute("hidden");
+        fireEvent.click(screen.getByRole("tab", { name: /登録フォーム/ }));
+        expect(screen.getByTestId("manual-entry-form")).toBeInTheDocument();
       });
 
-      it("フォームを入力して登録ボタンを押すと一覧に反映されること", async () => {
+      it("フォームを入力して登録ボタンを押すと成功メッセージが表示されること", async () => {
         const form = within(screen.getByTestId('manual-entry-form'));
         const serverSelect = form.getByLabelText(/サーバー名/);
         fireEvent.change(serverSelect, { target: { value: "かえで" } });
@@ -237,8 +232,8 @@ describe("App", () => {
         const cubeSelect = form.getByLabelText(/キューブ種類/);
         fireEvent.change(cubeSelect, { target: { value: "neo" } });
 
-        const gradeTransitionSelect = form.getByLabelText(/等級遷移/);
-        fireEvent.change(gradeTransitionSelect, { target: { value: "rare-epic" } });
+        const gradeBeforeSelect = form.getByLabelText(/挑戦した等級/);
+        fireEvent.change(gradeBeforeSelect, { target: { value: "rare" } });
 
         const quantityInput = form.getByLabelText(/使用個数/);
         fireEvent.change(quantityInput, { target: { value: "5" } });
@@ -247,18 +242,15 @@ describe("App", () => {
         fireEvent.click(submitBtn);
 
         await waitFor(() => {
-          expect(
-            screen.queryByText(/データがありません/),
-          ).not.toBeInTheDocument();
+          expect(screen.getByText(/登録が成功しました/)).toBeInTheDocument();
         });
 
-        // 登録一覧タブに切り替えて確認
-        fireEvent.click(screen.getByRole("tab", { name: /登録一覧/ }));
-        const rows = screen.queryAllByTestId(/record-row-/);
-        expect(rows.length).toBe(1);
+        // ダッシュボードタブに戻って確認
+        fireEvent.click(screen.getByRole("tab", { name: /ダッシュボード/ }));
+        expect(screen.getByText(/PROBABILITY OVERVIEW/i)).toBeInTheDocument();
       });
 
-      it("2件登録すると一覧に2つ表示されること", async () => {
+      it("2件登録すると成功メッセージが2回表示されること", async () => {
         const fillAndSubmit = async (cube: "neo" | "mega") => {
           const form = within(screen.getByTestId('manual-entry-form'));
           fireEvent.change(form.getByLabelText(/キューブ種類/), {
@@ -267,24 +259,23 @@ describe("App", () => {
           fireEvent.change(form.getByLabelText(/使用個数/), {
             target: { value: "3" },
           });
-          // Also set grade transition for each
-          fireEvent.change(form.getByLabelText(/等級遷移/), {
-            target: { value: cube === "neo" ? "epic-unique" : "rare-epic" },
+          // Also set grade before for each
+          fireEvent.change(form.getByLabelText(/挑戦した等級/), {
+            target: { value: cube === "neo" ? "epic" : "rare" },
           });
           fireEvent.click(form.getByRole("button", { name: /登録する/ }));
           await waitFor(() => {
-            expect(screen.queryByText(/データがありません/)).not.toBeInTheDocument();
+            expect(screen.getByText(/登録が成功しました/)).toBeInTheDocument();
           });
           // After submission, switch back to form tab for next entry
-          fireEvent.click(screen.getByRole("tab", { name: /データ登録/ }));
+          fireEvent.click(screen.getByRole("tab", { name: /登録フォーム/ }));
         };
 
         await fillAndSubmit("neo");
         await fillAndSubmit("mega");
 
-        fireEvent.click(screen.getByRole("tab", { name: /登録一覧/ }));
-        const rows = screen.getAllByTestId(/record-row-/);
-        expect(rows).toHaveLength(2);
+        // 成功メッセージが表示されることを確認
+        expect(screen.getByText(/登録が成功しました/)).toBeInTheDocument();
       });
 
       it("character_nameを入力して登録すると一覧にキャラクター名が表示されること", async () => {
@@ -298,123 +289,7 @@ describe("App", () => {
         fireEvent.click(screen.getByRole("button", { name: /登録する/ }));
 
         await waitFor(() => {
-          fireEvent.click(screen.getByRole("tab", { name: /登録一覧/ }));
-          expect(screen.queryByText(/さくら/)).toBeInTheDocument();
-        });
-      });
-    });
-
-    describe("編集", () => {
-      it("一覧の編集ボタンを押すとフォームが編集モード（更新ボタン）になること", async () => {
-        renderHomePage();
-        // Wait for dashboard to load
-        await waitFor(() => {
-          expect(screen.getByText(/PROBABILITY OVERVIEW/i)).toBeInTheDocument();
-        });
-        // Switch to form tab
-        fireEvent.click(screen.getByRole("tab", { name: /データ登録/ }));
-
-        const form = within(screen.getByTestId('manual-entry-form'));
-        // まず登録
-        fireEvent.change(form.getByLabelText(/使用個数/), {
-          target: { value: "5" },
-        });
-        fireEvent.click(screen.getByRole("button", { name: /登録する/ }));
-
-        await waitFor(() => {
-          expect(screen.queryByText(/データがありません/)).not.toBeInTheDocument();
-        });
-
-        // 登録一覧に切り替え
-        fireEvent.click(screen.getByRole("tab", { name: /登録一覧/ }));
-
-        // 編集ボタンを押す
-        const editBtn = screen.getByText(/編集/);
-        fireEvent.click(editBtn);
-
-        // 更新ボタンが表示されている
-        await waitFor(() => {
-          expect(
-            screen.queryByRole("button", { name: /更新/ }),
-          ).toBeInTheDocument();
-        });
-      });
-
-      it("編集モードで送信すると一覧が更新されること", async () => {
-        renderHomePage();
-        // Wait for dashboard to load
-        await waitFor(() => {
-          expect(screen.getByText(/PROBABILITY OVERVIEW/i)).toBeInTheDocument();
-        });
-        // Switch to form tab
-        fireEvent.click(screen.getByRole("tab", { name: /データ登録/ }));
-
-        const form = within(screen.getByTestId('manual-entry-form'));
-        // まず登録
-        fireEvent.change(form.getByLabelText(/使用個数/), {
-          target: { value: "3" },
-        });
-        fireEvent.click(screen.getByRole("button", { name: /登録する/ }));
-
-        await waitFor(() => {
-          fireEvent.click(screen.getByRole("tab", { name: /登録一覧/ }));
-          const listEl = screen.getByTestId("record-list");
-          expect(listEl.textContent).toContain("3");
-        });
-
-        // 編集
-        const editBtns = screen.getAllByText(/^編集$/);
-        fireEvent.click(editBtns[0]);
-
-        await waitFor(() => {
-          const formAfter = within(screen.getByTestId("manual-entry-form"));
-          expect(
-            formAfter.queryByRole("button", { name: /更新/ }),
-          ).toBeInTheDocument();
-        });
-
-        // 使用個数を変更（編集モード後のフォームを再取得）
-        const formAfter = within(screen.getByTestId("manual-entry-form"));
-        const quantityInput = formAfter.getByLabelText(/使用個数/) as HTMLInputElement;
-        fireEvent.change(quantityInput, { target: { value: "99" } });
-        fireEvent.click(formAfter.getByRole("button", { name: /更新/ }));
-
-        await waitFor(() => {
-          fireEvent.click(screen.getByRole("tab", { name: /登録一覧/ }));
-          const listEl = screen.getByTestId("record-list");
-          expect(listEl.textContent).toContain("99");
-        });
-      });
-    });
-
-    describe("削除", () => {
-      it("一覧の削除ボタンを押すとデータが消えること", async () => {
-        renderHomePage();
-        // Wait for dashboard to load
-        await waitFor(() => {
-          expect(screen.getByText(/PROBABILITY OVERVIEW/i)).toBeInTheDocument();
-        });
-        // Switch to form tab
-        fireEvent.click(screen.getByRole("tab", { name: /データ登録/ }));
-
-        const form = within(screen.getByTestId('manual-entry-form'));
-        // まず登録
-        fireEvent.change(form.getByLabelText(/使用個数/), {
-          target: { value: "1" },
-        });
-        fireEvent.click(screen.getByRole("button", { name: /登録する/ }));
-
-        await waitFor(() => {
-          fireEvent.click(screen.getByRole("tab", { name: /登録一覧/ }));
-          expect(screen.queryByText(/データがありません/)).not.toBeInTheDocument();
-        });
-
-        // 削除ボタンを押す
-        const deleteBtn = screen.getByText("削除");
-        fireEvent.click(deleteBtn);
-
-        await waitFor(() => {
-          expect(screen.queryByText(/データがありません/)).toBeInTheDocument();
+          expect(screen.getByText(/登録が成功しました/)).toBeInTheDocument();
         });
       });
     });
@@ -427,7 +302,7 @@ describe("App", () => {
           expect(screen.getByText(/PROBABILITY OVERVIEW/i)).toBeInTheDocument();
         });
         // Switch to form tab
-        fireEvent.click(screen.getByRole("tab", { name: /データ登録/ }));
+        fireEvent.click(screen.getByRole("tab", { name: /登録フォーム/ }));
 
         const form = within(screen.getByTestId('manual-entry-form'));
         // 数量を空にする（デフォルトは "1"）
@@ -451,7 +326,7 @@ describe("App", () => {
           expect(screen.getByText(/PROBABILITY OVERVIEW/i)).toBeInTheDocument();
         });
         // Switch to form tab
-        fireEvent.click(screen.getByRole("tab", { name: /データ登録/ }));
+        fireEvent.click(screen.getByRole("tab", { name: /登録フォーム/ }));
 
         const form = within(screen.getByTestId('manual-entry-form'));
         fireEvent.change(form.getByLabelText(/使用個数/), {
@@ -467,29 +342,27 @@ describe("App", () => {
         });
       });
 
-      it("無効な等級遷移は選択肢に存在しないこと", async () => {
+      it("無効な等級は選択肢に存在しないこと", async () => {
         renderHomePage();
         // Wait for dashboard to load
         await waitFor(() => {
           expect(screen.getByText(/PROBABILITY OVERVIEW/i)).toBeInTheDocument();
         });
         // Switch to form tab
-        fireEvent.click(screen.getByRole("tab", { name: /データ登録/ }));
+        fireEvent.click(screen.getByRole("tab", { name: /登録フォーム/ }));
 
         const form = within(screen.getByTestId('manual-entry-form'));
-        // 等級遷移の選択肢を確認 - すべて有効な隣接遷移のみ
-        const gradeSelect = form.getByLabelText(/等級遷移/) as HTMLSelectElement;
+        // 等級の選択肢を確認 - すべて有効な隣接遷移のみ
+        const gradeSelect = form.getByLabelText(/挑戦した等級/) as HTMLSelectElement;
         const options = gradeSelect.querySelectorAll('option');
         const optionValues = Array.from(options).map(opt => opt.value);
 
-        // 有効な遷移のみが含まれる
-        expect(optionValues).toContain("rare-epic");
-        expect(optionValues).toContain("epic-unique");
-        expect(optionValues).toContain("unique-legendary");
-        // 無効な遷移は含まれない
-        expect(optionValues).not.toContain("epic-rare");
-        expect(optionValues).not.toContain("rare-rare");
-        expect(optionValues).not.toContain("unique-epic");
+        // 有効な等級のみが含まれる (legendaryは除外される - 昇級先がないため)
+        expect(optionValues).toContain("rare");
+        expect(optionValues).toContain("epic");
+        expect(optionValues).toContain("unique");
+        // legendary は含まれない
+        expect(optionValues).not.toContain("legendary");
       });
     });
 
@@ -502,7 +375,7 @@ describe("App", () => {
         });
 
         // フォームタブに切り替えてデータを登録
-        fireEvent.click(screen.getByRole("tab", { name: /データ登録/ }));
+        fireEvent.click(screen.getByRole("tab", { name: /登録フォーム/ }));
         const form = within(screen.getByTestId('manual-entry-form'));
         fireEvent.change(form.getByLabelText(/使用個数/), {
           target: { value: "5" },
@@ -510,7 +383,7 @@ describe("App", () => {
         fireEvent.click(screen.getByRole("button", { name: /登録する/ }));
 
         await waitFor(() => {
-          expect(screen.queryByText(/データがありません/)).not.toBeInTheDocument();
+          expect(screen.getByText(/登録が成功しました/)).toBeInTheDocument();
         });
 
         // ダッシュボードタブに戻る
@@ -521,7 +394,7 @@ describe("App", () => {
         });
 
         // Dashboardの内容が依然として表示されている
-        expect(screen.getByAltText("JMS DataBase")).toBeInTheDocument();
+        expect(screen.getByAltText("みんなで作る！きのこデータベース")).toBeInTheDocument();
         expect(screen.queryAllByText(/潜在能力/).length).toBeGreaterThanOrEqual(1);
         expect(screen.queryAllByText(/ネオキューブ/).length).toBeGreaterThanOrEqual(1);
         expect(screen.queryAllByText(/メガキューブ/).length).toBeGreaterThanOrEqual(1);
@@ -531,29 +404,21 @@ describe("App", () => {
   });
 
   describe("テーブル構造（アクセシビリティ）", () => {
-    it("登録一覧でテーブル（<table>）が存在すること", async () => {
+    it("フォームでテーブル（<table>）が存在しないこと", async () => {
       renderHomePage();
-      fireEvent.click(screen.getByRole("tab", { name: /登録一覧/ }));
-      // Initially no data, so no table. Add data first.
-      fireEvent.click(screen.getByRole("tab", { name: /データ登録/ }));
-      const form = within(screen.getByTestId('manual-entry-form'));
-      fireEvent.change(form.getByLabelText(/使用個数/), {
-        target: { value: "5" },
-      });
-      fireEvent.click(screen.getByRole("button", { name: /登録する/ }));
-
+      // HomePage doesn't have record list, so no tables expected
       await waitFor(() => {
-        fireEvent.click(screen.getByRole("tab", { name: /登録一覧/ }));
-        const tables = screen.queryAllByRole("table");
-        expect(tables.length).toBeGreaterThanOrEqual(1);
+        expect(screen.getByText(/PROBABILITY OVERVIEW/i)).toBeInTheDocument();
       });
+      const tables = screen.queryAllByRole("table");
+      expect(tables.length).toBe(0);
     });
 
-    it("テーブル内にセル（<td>）が存在し、数字データを含むこと", async () => {
+    it("フォーム内にセル（<td>）が存在しないこと", async () => {
       renderHomePage();
 
-      // まずデータを登録
-      fireEvent.click(screen.getByRole("tab", { name: /データ登録/ }));
+      // フォームタブに切り替え
+      fireEvent.click(screen.getByRole("tab", { name: /登録フォーム/ }));
       const form = within(screen.getByTestId('manual-entry-form'));
       fireEvent.change(form.getByLabelText(/使用個数/), {
         target: { value: "5" },
@@ -561,16 +426,19 @@ describe("App", () => {
       fireEvent.click(screen.getByRole("button", { name: /登録する/ }));
 
       await waitFor(() => {
-        fireEvent.click(screen.getByRole("tab", { name: /登録一覧/ }));
-        const cells = screen.queryAllByRole("cell");
-        expect(cells.length).toBeGreaterThanOrEqual(4);
+        expect(screen.getByText(/登録が成功しました/)).toBeInTheDocument();
       });
+
+      // フォーム内にテーブルセルは存在しない
+      const cells = screen.queryAllByRole("cell");
+      expect(cells.length).toBe(0);
     });
 
-    it("テーブル内に列見出し（<th>）が存在すること", async () => {
+    it("フォーム内に列見出し（<th>）が存在しないこと", async () => {
       renderHomePage();
-      // Add data first
-      fireEvent.click(screen.getByRole("tab", { name: /データ登録/ }));
+
+      // フォームタブに切り替え
+      fireEvent.click(screen.getByRole("tab", { name: /登録フォーム/ }));
       const form = within(screen.getByTestId('manual-entry-form'));
       fireEvent.change(form.getByLabelText(/使用個数/), {
         target: { value: "5" },
@@ -578,10 +446,12 @@ describe("App", () => {
       fireEvent.click(screen.getByRole("button", { name: /登録する/ }));
 
       await waitFor(() => {
-        fireEvent.click(screen.getByRole("tab", { name: /登録一覧/ }));
-        const headers = screen.queryAllByRole("columnheader");
-        expect(headers.length).toBeGreaterThanOrEqual(2);
+        expect(screen.getByText(/登録が成功しました/)).toBeInTheDocument();
       });
+
+      // フォーム内に列見出しは存在しない
+      const headers = screen.queryAllByRole("columnheader");
+      expect(headers.length).toBe(0);
     });
   });
 });

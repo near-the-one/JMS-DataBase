@@ -142,7 +142,7 @@ async function isCurrentlyMiracleTime(supabase: any): Promise<boolean> {
 async function aggregateStats(supabase: any, params: Params) {
   let query = supabase
     .from("cube_usage_events")
-    .select("potential_type, cube_type, grade_transition, quantity_used, timestamp, created_at");
+    .select("potential_type, cube_type, grade_transition, result, quantity_used, timestamp, created_at");
 
   if (params.potential_type) query = query.eq("potential_type", params.potential_type);
   if (params.cube_type) query = query.eq("cube_type", params.cube_type);
@@ -182,10 +182,13 @@ async function aggregateStats(supabase: any, params: Params) {
   let dataPeriodStart: number | null = null;
   let dataPeriodEnd: number | null = null;
   let latestCreatedAt: number | null = null;
+  let totalRecords = 0;
 
   for (const r of events || []) {
     const miracle = isInMiracle(r.timestamp);
     if (params.is_miracle !== undefined && miracle !== params.is_miracle) continue;
+
+    totalRecords += 1;
 
     const key = `${r.potential_type}|${r.cube_type}|${r.grade_transition}|${miracle}`;
     if (!map.has(key)) {
@@ -199,8 +202,12 @@ async function aggregateStats(supabase: any, params: Params) {
       });
     }
     const agg = map.get(key)!;
+    // 分母(total_quantity)は成功/失敗を問わず全ての使用個数を合算する（生存バイアス対策）。
     agg.total_quantity += Number(r.quantity_used) || 0;
-    agg.count += 1;
+    // 分子(count)は「上昇した」記録のみカウントする。
+    if (r.result === "success") {
+      agg.count += 1;
+    }
 
     const ts = fromJstNaiveTimestamp(r.timestamp);
     if (dataPeriodStart === null || ts < dataPeriodStart) dataPeriodStart = ts;
@@ -211,14 +218,13 @@ async function aggregateStats(supabase: any, params: Params) {
   }
 
   const stats = [];
-  let totalRecords = 0;
   for (const agg of map.values()) {
     stats.push({
       ...agg,
       grade_transition_label: GRADE_TRANSITION_LABELS[agg.grade_transition] ?? "",
+      // supply_rate = 昇級率 (%) = 成功回数 / 使用個数(成功+失敗の合計) * 100
       supply_rate: agg.total_quantity ? (agg.count / agg.total_quantity) * 100 : 0,
     });
-    totalRecords += agg.count;
   }
 
   stats.sort((a, b) => {
@@ -237,6 +243,7 @@ async function aggregateStats(supabase: any, params: Params) {
       generated_at: toISO(now),
       data_period_start: dataPeriodStart ? toISO(new Date(dataPeriodStart)) : toISO(now),
       data_period_end: dataPeriodEnd ? toISO(new Date(dataPeriodEnd)) : toISO(now),
+      total_records: totalRecords,
       latest_created_at: latestCreatedAt ? toISO(new Date(latestCreatedAt)) : toISO(now),
       cache_hint: { max_age: 300, stale_while_revalidate: 600 },
     },

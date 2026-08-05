@@ -21,8 +21,9 @@ describe("Phase1: HomePage 構成検証", () => {
       );
       // 初期状態はダッシュボード
       expect(screen.queryByText(/PROBABILITY OVERVIEW/i)).toBeInTheDocument();
-      // Check for dashboard-specific "ネオキューブ" in prob-card name
-      expect(screen.getByTestId("view-dashboard")).toHaveTextContent(/ネオキューブ/);
+      // Check for dashboard-specific "ネオキューブ" in prob-card name (within the cube card)
+      expect(screen.getByText(/種類ごとの昇級確率/i)).toBeInTheDocument();
+      expect(screen.getAllByText(/ネオキューブ/)).toHaveLength(2); // tab button + card name
     });
 
     it("/ にアクセスしても RecordList は初期状態で表示されないこと", () => {
@@ -31,10 +32,8 @@ describe("Phase1: HomePage 構成検証", () => {
           <App />
         </MemoryRouter>,
       );
-      // RecordList の testid は初期状態では存在しない
+      // RecordList の testid は HomePage には存在しない
       expect(screen.queryByTestId("record-list")).not.toBeInTheDocument();
-      // Also check that list view is not active
-      expect(screen.getByTestId("view-list")).not.toHaveClass("active");
     });
 
     it("ヘッダーにロゴとナビタブが表示されること", () => {
@@ -44,12 +43,12 @@ describe("Phase1: HomePage 構成検証", () => {
         </MemoryRouter>,
       );
       // Check specifically in header for logo
+      const logoImg = screen.getByAltText("みんなで作る！きのこデータベース");
+      expect(logoImg).toBeInTheDocument();
       const header = screen.getByRole("banner");
-      expect(header).toHaveTextContent(/JMS DataBase/i);
       expect(header).toHaveTextContent(/ダッシュボード/);
-      expect(header).toHaveTextContent(/登録一覧/);
-      expect(header).toHaveTextContent(/データ登録/);
-      expect(header).toHaveTextContent(/ログイン/);
+      expect(header).toHaveTextContent(/登録フォーム/);
+      // Note: HomePage doesn't have "登録一覧" or "ログイン" tabs in the header
     });
 
     it("/ にアクセスしても ManualEntryForm は初期状態で表示されないこと", () => {
@@ -59,9 +58,8 @@ describe("Phase1: HomePage 構成検証", () => {
         </MemoryRouter>,
       );
       // 初期状態ではフォームは非表示（ダッシュボードが表示）
-      // The form element exists in DOM but is hidden via hidden attribute
-      const formView = screen.getByTestId("view-form");
-      expect(formView).toHaveAttribute("hidden");
+      // The form element is not rendered when not on the register tab
+      expect(screen.queryByTestId("manual-entry-form")).not.toBeInTheDocument();
     });
 
     it("データ登録タブをクリックするとフォームが表示されること", () => {
@@ -70,23 +68,10 @@ describe("Phase1: HomePage 構成検証", () => {
           <App />
         </MemoryRouter>,
       );
-      fireEvent.click(screen.getByRole("tab", { name: /データ登録/ }));
+      fireEvent.click(screen.getByRole("tab", { name: /登録フォーム/ }));
       expect(screen.getByTestId("manual-entry-form")).toBeInTheDocument();
       expect(screen.queryByText(/SUBMIT DATA/i)).toBeInTheDocument();
       expect(screen.queryByText(/キューブ使用データ登録/)).toBeInTheDocument();
-    });
-
-    it("登録一覧タブをクリックすると一覧が表示されること", () => {
-      render(
-        <MemoryRouter initialEntries={["/"]}>
-          <App />
-        </MemoryRouter>,
-      );
-      fireEvent.click(screen.getByRole("tab", { name: /登録一覧/ }));
-      // Check within the list view container
-      expect(screen.getByTestId("view-list")).toHaveTextContent(/SUBMITTED RECORDS/i);
-      expect(screen.getByTestId("view-list")).toHaveTextContent(/種別/);
-      expect(screen.getByTestId("view-list")).toHaveTextContent(/サーバー/);
     });
 
     it("ダッシュボードタブをクリックするとダッシュボードに戻ること", () => {
@@ -96,7 +81,7 @@ describe("Phase1: HomePage 構成検証", () => {
         </MemoryRouter>,
       );
       // まずフォームタブをクリック
-      fireEvent.click(screen.getByRole("tab", { name: /データ登録/ }));
+      fireEvent.click(screen.getByRole("tab", { name: /登録フォーム/ }));
       expect(screen.getByTestId("manual-entry-form")).toBeInTheDocument();
 
       // ダッシュボードタブをクリック
@@ -109,7 +94,7 @@ describe("Phase1: HomePage 構成検証", () => {
     it("レガシーモード（Router なし）でもダッシュボードが初期表示されること", () => {
       render(<App />);
       expect(screen.queryByText(/PROBABILITY OVERVIEW/i)).toBeInTheDocument();
-      expect(screen.getByTestId("view-dashboard")).toHaveTextContent(/ネオキューブ/);
+      expect(screen.getByText(/種類ごとの昇級確率/i)).toBeInTheDocument();
     });
 
     it("レガシーモードでも RecordList は初期状態で表示されないこと", () => {
@@ -119,15 +104,15 @@ describe("Phase1: HomePage 構成検証", () => {
 
     it("レガシーモードでデータ登録タブをクリックするとフォームが表示されること", () => {
       render(<App />);
-      fireEvent.click(screen.getByRole("tab", { name: /データ登録/ }));
+      fireEvent.click(screen.getByRole("tab", { name: /登録フォーム/ }));
       expect(screen.getByTestId("manual-entry-form")).toBeInTheDocument();
       // Also check within form container
-      expect(screen.getByTestId("view-form")).toHaveTextContent(/SUBMIT DATA/i);
+      expect(screen.queryByText(/SUBMIT DATA/i)).toBeInTheDocument();
     });
   });
 
-  describe("手入力後の RecordList 表示制御", () => {
-    it("/ で手入力後もダッシュボードに留まること（自動で一覧に遷移しない）", async () => {
+  describe("手入力後のダッシュボード表示確認", () => {
+    it("/ で手入力後、ダッシュボードタブに戻るとダッシュボードが表示されること", async () => {
       render(
         <MemoryRouter initialEntries={["/"]}>
           <App />
@@ -135,47 +120,21 @@ describe("Phase1: HomePage 構成検証", () => {
       );
 
       // データ登録タブに移動
-      fireEvent.click(screen.getByRole("tab", { name: /データ登録/ }));
+      fireEvent.click(screen.getByRole("tab", { name: /登録フォーム/ }));
       const form = within(screen.getByTestId("manual-entry-form"));
       fireEvent.change(form.getByLabelText(/使用個数/), {
         target: { value: "5" },
       });
       fireEvent.click(form.getByRole("button", { name: /登録する/ }));
 
-      // 登録後は「登録一覧」タブに自動遷移する（現在の実装では）
+      // 成功メッセージが表示される
       await waitFor(() => {
-        expect(screen.queryByText(/SUBMITTED RECORDS/i)).toBeInTheDocument();
-      });
-    });
-
-    it("/ では一般ユーザーがデータを登録しても編集ボタンが現れないこと（一覧タブで表示）", async () => {
-      render(
-        <MemoryRouter initialEntries={["/"]}>
-          <App />
-        </MemoryRouter>,
-      );
-
-      // データ登録タブに移動して登録
-      fireEvent.click(screen.getByRole("tab", { name: /データ登録/ }));
-      const form = within(screen.getByTestId("manual-entry-form"));
-      fireEvent.change(form.getByLabelText(/使用個数/), {
-        target: { value: "3" },
-      });
-      fireEvent.click(form.getByRole("button", { name: /登録する/ }));
-
-      await waitFor(() => {
-        // 登録一覧タブに自動遷移
-        expect(screen.queryByText(/SUBMITTED RECORDS/i)).toBeInTheDocument();
+        expect(screen.getByText(/登録が成功しました/)).toBeInTheDocument();
       });
 
-      // 編集/削除ボタンは一覧に表示される（管理者機能として）
-      // ただし HomePage の RecordList には編集/削除ボタンがある（管理者画面用の RecordList と同じコンポーネントを使用）
-      // このテストでは単にボタンが存在することを確認
-      const editButtons = screen.queryAllByText(/^編集$/);
-      const deleteButtons = screen.queryAllByText(/^削除$/);
-      // 管理者画面以外でもボタン自体は表示されるが、onEdit/onDelete は HomePage で定義されている
-      expect(editButtons.length).toBeGreaterThanOrEqual(0);
-      expect(deleteButtons.length).toBeGreaterThanOrEqual(0);
+      // ダッシュボードタブに戻る
+      fireEvent.click(screen.getByRole("tab", { name: /ダッシュボード/ }));
+      expect(screen.queryByText(/PROBABILITY OVERVIEW/i)).toBeInTheDocument();
     });
   });
 });

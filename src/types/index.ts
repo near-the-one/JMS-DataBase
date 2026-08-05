@@ -100,11 +100,13 @@ export interface ManualEntryRecord {
   potential_type: PotentialType;
   cube_type: CubeType;
   grade_before: Grade;
-  grade_after: Grade;
+  /** 昇級後の等級。result==="success" のときのみ意味を持つ（"fail" の場合は null） */
+  grade_after?: Grade | null;
   quantity_used: number;
   character_name: string | null;
   timestamp: number;
   /** 登録時刻（自動生成） */
   created_at: number;
   part?: string;
+  result: "success" | "fail";
 }

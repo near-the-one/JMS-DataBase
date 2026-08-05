@@ -49,7 +49,12 @@ describe("Phase1: ルーティング統合", () => {
         </MemoryRouter>,
       );
       // Use getByRole for banner and getByText for dashboard title
-      expect(screen.getByRole("banner")).toHaveTextContent(/JMS DataBase/i);
+      // Check that the header contains the logo (via alt text) and both tab names
+      const logoImg = screen.getByAltText("みんなで作る！きのこデータベース");
+      expect(logoImg).toBeInTheDocument();
+      const header = screen.getByRole("banner");
+      expect(header).toHaveTextContent(/ダッシュボード/);
+      expect(header).toHaveTextContent(/登録フォーム/);
       expect(screen.getByText(/PROBABILITY OVERVIEW/i)).toBeInTheDocument();
     });
 
@@ -72,25 +77,14 @@ describe("Phase1: ルーティング統合", () => {
       expect(screen.queryByTestId("record-list")).not.toBeInTheDocument();
     });
 
-    it("データ登録タブをクリックするとフォームが表示されること", () => {
+    it("登録フォームタブをクリックするとフォームが表示されること", () => {
       render(
         <MemoryRouter initialEntries={["/"]}>
           <App />
         </MemoryRouter>,
       );
-      fireEvent.click(screen.getByRole("tab", { name: /データ登録/ }));
+      fireEvent.click(screen.getByRole("tab", { name: /登録フォーム/ }));
       expect(screen.getByTestId("manual-entry-form")).toBeInTheDocument();
-    });
-
-    it("登録一覧タブをクリックすると一覧が表示されること", () => {
-      render(
-        <MemoryRouter initialEntries={["/"]}>
-          <App />
-        </MemoryRouter>,
-      );
-      fireEvent.click(screen.getByRole("tab", { name: /登録一覧/ }));
-      // When no data, shows "データがありません" text
-      expect(screen.getByText(/データがありません/)).toBeInTheDocument();
     });
   });
 });

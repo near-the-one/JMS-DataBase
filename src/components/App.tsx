@@ -55,7 +55,7 @@ function HomePage() {
     <>
       <MessageDialog open={dialogOpen} type={dialogType} message={dialogMessage} onClose={() => setDialogOpen(false)} />
       <header>
-        <a href="/" className="logo"><img src="/assets/site-icons/サイトロゴ2.png" alt="JMS DataBase" style={{ height: '70px', maxHeight: '70px' }} /></a>
+        <a href="/" className="logo"><img src="/assets/site-icons/サイトロゴ2.png" alt="みんなで作る！きのこデータベース" style={{ height: '70px', maxHeight: '70px' }} /></a>
         <nav>
           <button
             role="tab"
@@ -104,7 +104,7 @@ function HomePage() {
       </main>
       <footer>
         <div className="footer-inner">
-          <span>JMS DataBase — コミュニティ計測による非公式データベース</span>
+          <span>みんなで作る！きのこデータベース — コミュニティ計測による非公式データベース</span>
           <a
             href="https://x.com/jmsdatabase"
             target="_blank"

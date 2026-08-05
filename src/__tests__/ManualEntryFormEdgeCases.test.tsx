@@ -82,27 +82,28 @@ describe("ManualEntryForm Edge Cases", () => {
     });
   });
 
-  describe("同等级遷移のバリデーション", () => {
-    it("無効な遷移（rare→rare）を選択しようとするとバリデーションエラーになること", async () => {
+  describe("挑戦した等級のバリデーション", () => {
+    it("無効な等級（legendary等）が選択肢に含まれないこと", async () => {
       const onSubmit = vi.fn();
       render(<ManualEntryForm onSubmit={onSubmit} />);
-      // The select only has valid adjacent grade transitions, so we test that the validation message
-      // is correct by checking the error when trying to submit with an invalid value
-      // Since the UI only allows valid options, we can test the validation logic by checking the option list
-      const select = screen.getByLabelText(/等級遷移/) as HTMLSelectElement;
+      // The select only has valid grades (rare, epic, unique), legendary is excluded
+      // We test that the UI only allows valid options
+      const select = screen.getByLabelText(/挑戦した等級/) as HTMLSelectElement;
       const options = Array.from(select.options).map(o => o.value);
-      expect(options).not.toContain("rare-rare");
-      expect(options).toContain("rare-epic");
-      expect(options).toContain("epic-unique");
-      expect(options).toContain("unique-legendary");
+      expect(options).not.toContain("legendary");
+      expect(options).toContain("rare");
+      expect(options).toContain("epic");
+      expect(options).toContain("unique");
     });
 
-    it("有効な遷移（rare→epic）が選択可能であること", async () => {
+    it("有効な等級（rare）が選択可能であること", async () => {
       const onSubmit = vi.fn();
       render(<ManualEntryForm onSubmit={onSubmit} />);
-      fireEvent.change(screen.getByLabelText(/等級遷移/), {
-        target: { value: "rare-epic" },
+      fireEvent.change(screen.getByLabelText(/挑戦した等級/), {
+        target: { value: "rare" },
       });
+      // 結果を「上昇した」に設定
+      fireEvent.click(screen.getByRole("button", { name: /上昇した/ }));
       fireEvent.click(screen.getByRole("button", { name: /登録/ }));
       await vi.waitFor(() => {
         expect(onSubmit).toHaveBeenCalledTimes(1);
@@ -130,10 +131,10 @@ describe("ManualEntryForm Edge Cases", () => {
       expect(select.value).toBe("neo");
     });
 
-    it("初期表示で等級遷移が「rare-epic」に設定されていること", () => {
+    it("初期表示で挑戦した等級が「unique」に設定されていること", () => {
       render(<ManualEntryForm onSubmit={vi.fn()} />);
-      const select = screen.getByLabelText(/等級遷移/) as HTMLSelectElement;
-      expect(select.value).toBe("rare-epic");
+      const select = screen.getByLabelText(/挑戦した等級/) as HTMLSelectElement;
+      expect(select.value).toBe("unique");
     });
   });
 
@@ -150,7 +151,7 @@ describe("ManualEntryForm Edge Cases", () => {
         <ManualEntryForm key="new-entry" onSubmit={vi.fn()} />,
       );
       const inputNew = screen.getByLabelText(/使用個数/) as HTMLInputElement;
-      expect(inputNew.value).toBe("1");
+      expect(inputNew.value).toBe("100");
     });
   });
 
@@ -170,13 +171,9 @@ describe("ManualEntryForm Edge Cases", () => {
 
     it("複数のバリデーションエラーが同時に表示されること", async () => {
       render(<ManualEntryForm onSubmit={vi.fn()} />);
-      // 使用個数を0に、等級を逆遷移に
+      // 使用個数を0に
       fireEvent.change(screen.getByLabelText(/使用個数/), {
         target: { value: "0" },
-      });
-      // Try to select an invalid transition (not available in options, but we can check the validation)
-      fireEvent.change(screen.getByLabelText(/等級遷移/), {
-        target: { value: "rare-epic" },
       });
       fireEvent.click(screen.getByRole("button", { name: /登録/ }));
 
@@ -200,10 +197,10 @@ describe("ManualEntryForm Edge Cases", () => {
   });
 
   describe("送信ボタンの文言", () => {
-    it("新規登録モードではボタンに「登録」と表示されること", () => {
+    it("新規登録モードではボタンに「登録する」と表示されること", () => {
       render(<ManualEntryForm onSubmit={vi.fn()} />);
       expect(
-        screen.getByRole("button", { name: /^登録$/ }),
+        screen.getByRole("button", { name: /^登録する$/ }),
       ).toBeInTheDocument();
     });
 

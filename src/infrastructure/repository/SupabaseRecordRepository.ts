@@ -79,22 +79,22 @@ function validateRecord(record: Omit<ManualEntryRecord, "id">): void {
     throw new Error(`Invalid combination: ${record.potential_type} - ${record.cube_type}`);
   }
 
-  // Validate grade_before and grade_after
+  // Validate grade_before (等級遷移は grade_before から自動的に決まる。legendaryは挑戦対象になり得ない)
   const gradeBefore = record.grade_before;
-  const gradeAfter = record.grade_after;
-
-  if (!GRADE_ORDER.includes(gradeBefore)) {
+  if (!GRADE_ORDER.includes(gradeBefore) || GRADE_ORDER.indexOf(gradeBefore) >= GRADE_ORDER.length - 1) {
     throw new Error(`Invalid grade_before: ${gradeBefore}`);
   }
-  if (!GRADE_ORDER.includes(gradeAfter)) {
-    throw new Error(`Invalid grade_after: ${gradeAfter}`);
+
+  // Validate result (success/fail)。失敗データも母数に含めるための必須フィールド
+  if (record.result !== "success" && record.result !== "fail") {
+    throw new Error(`Invalid result: ${record.result}. Must be "success" or "fail".`);
   }
 
-  // Validate transition is forward and adjacent (e.g., rare->epic, epic->unique, unique->legendary)
-  const beforeIdx = GRADE_ORDER.indexOf(gradeBefore);
-  const afterIdx = GRADE_ORDER.indexOf(gradeAfter);
-  if (beforeIdx >= afterIdx || afterIdx - beforeIdx !== 1) {
-    throw new Error(`Invalid grade transition: ${gradeBefore} -> ${gradeAfter}. Must be adjacent forward transition.`);
+  // grade_after は result==="success" のときだけ意味を持つ（fail の場合は変化なし）。
+  // 送られてきている場合は、grade_before の次の等級と一致しているか整合性チェックする。
+  const expectedAfter = GRADE_ORDER[GRADE_ORDER.indexOf(gradeBefore) + 1];
+  if (record.result === "success" && record.grade_after && record.grade_after !== expectedAfter) {
+    throw new Error(`Invalid grade_after: ${record.grade_after}. Expected ${expectedAfter} for grade_before=${gradeBefore}.`);
   }
 
   // Validate quantity_used
@@ -144,22 +144,23 @@ export class SupabaseRecordRepository implements IRecordRepository {
     const id = row.id;
     // Convert created_at (Postgres created_attz) to number (ms since epoch)
     const created_at = row.created_at ? new Date(row.created_at).getTime() : Date.now();
-    // Determine grade_before and grade_after. Prefer explicit fields if present; otherwise map grade_transition (1‑3).
+    // Determine grade_before and grade_after. grade_transition (1-3) determines grade_before;
+    // grade_after is only meaningful when result === "success".
     let gradeBefore: Grade = "rare";
-    let gradeAfter: Grade = "rare";
-    if (row.grade_before && row.grade_after) {
-      gradeBefore = row.grade_before as Grade;
-      gradeAfter = row.grade_after as Grade;
-    } else if (row.grade_transition) {
+    let gradeAfter: Grade | null = null;
+    const result: "success" | "fail" = row.result === "success" ? "success" : "fail";
+    if (row.grade_transition) {
       const transition = Number(row.grade_transition);
       const gradeMap: Record<number, Grade> = {
         1: "rare",
         2: "epic",
         3: "unique",
       } as const;
-      const mapped = gradeMap[transition] ?? "rare";
-      gradeBefore = mapped;
-      gradeAfter = mapped;
+      gradeBefore = gradeMap[transition] ?? "rare";
+      if (result === "success") {
+        const idx = GRADE_ORDER.indexOf(gradeBefore);
+        gradeAfter = GRADE_ORDER[idx + 1] ?? null;
+      }
     }
     // timestamp（使用日時・JST naive）を epoch(ms) に変換。無ければ created_at で代替。
     const timestamp = row.timestamp ? fromJstNaiveTimestamp(row.timestamp) : created_at;
@@ -171,6 +172,7 @@ export class SupabaseRecordRepository implements IRecordRepository {
       cube_type: row.cube_type,
       grade_before: gradeBefore,
       grade_after: gradeAfter,
+      result,
       quantity_used: row.quantity_used,
       character_name: row.character_name ?? null,
       timestamp,
@@ -183,7 +185,7 @@ export class SupabaseRecordRepository implements IRecordRepository {
   async getAll(): Promise<ManualEntryRecord[]> {
     const { data, error } = await this.client
       .from("cube_usage_events")
-      .select("id,timestamp,server_name,potential_type,cube_type,grade_transition,quantity_used,character_name,created_at,part");
+      .select("id,timestamp,server_name,potential_type,cube_type,grade_transition,result,quantity_used,character_name,created_at,part");
     if (error) throw error;
     // data may be null; ensure array
     const rows = (data || []) as any[];
@@ -208,10 +210,9 @@ export class SupabaseRecordRepository implements IRecordRepository {
     // SERVER-SIDE VALIDATION (defense in depth - primary enforcement is DB constraints)
     validateRecord(record);
 
-    // Convert grade_before/grade_after to grade_transition (1-3)
-    const startIdx = GRADE_ORDER.indexOf(record.grade_before);
-    const endIdx = GRADE_ORDER.indexOf(record.grade_after);
-    const gradeTransition = startIdx >= 0 && endIdx > startIdx ? startIdx + 1 : 1;
+    // grade_transition (1-3) は grade_before だけで決まる（rare=1, epic=2, unique=3）。
+    // 遷移は常に隣接1段のみなので、成功/失敗どちらの記録でも同じ値になる。
+    const gradeTransition = GRADE_ORDER.indexOf(record.grade_before) + 1;
 
     // Sanitize character_name
     const sanitizedCharacterName = record.character_name ? sanitizeInput(record.character_name) : null;
@@ -223,6 +224,7 @@ export class SupabaseRecordRepository implements IRecordRepository {
       ...recordWithoutGrades,
       character_name: sanitizedCharacterName,
       grade_transition: gradeTransition,
+      result: record.result,
       // timestamp カラムは tz なし。JSTの生の日時をそのまま保存する。
       timestamp: toJstNaiveTimestamp(record.timestamp),
     };
@@ -283,7 +285,7 @@ export class SupabaseRecordRepository implements IRecordRepository {
     // 1. キューブ使用イベント取得（判定対象の timestamp 列を必ず含める）
     const { data: events, error: evErr } = await this.client
       .from("cube_usage_events")
-      .select("id,server_name,potential_type,cube_type,grade_transition,quantity_used,character_name,timestamp,created_at,part");
+      .select("id,server_name,potential_type,cube_type,grade_transition,result,quantity_used,character_name,timestamp,created_at,part");
     if (evErr) throw evErr;
     const rows = (events || []) as any[];
 
@@ -343,8 +345,12 @@ export class SupabaseRecordRepository implements IRecordRepository {
         });
       }
       const agg = map.get(key)!;
+      // 分母(total_quantity)は成功/失敗を問わず全ての使用個数を合算する（生存バイアス対策）。
       agg.total_quantity += Number(r.quantity_used) || 0;
-      agg.count += 1;
+      // 分子(count)は「上昇した」記録のみカウントする。
+      if (r.result === "success") {
+        agg.count += 1;
+      }
     }
 
     // 5. 結果整形
@@ -360,8 +366,8 @@ export class SupabaseRecordRepository implements IRecordRepository {
     for (const agg of map.values()) {
       result.push({
         ...agg,
-        // supply_rate = 昇級率 (%) = 成功回数 / 使用個数 * 100
-        // 1レコード = 1成功昇級、quantity_used = 使用キューブ個数
+        // supply_rate = 昇級率 (%) = 成功回数 / 使用個数(成功+失敗の合計) * 100
+        // 失敗記録も total_quantity に含まれるため、生存バイアスのない実測値になる
         supply_rate: agg.total_quantity ? (agg.count / agg.total_quantity) * 100 : 0,
       });
     }
@@ -401,9 +407,17 @@ export class SupabaseRecordRepository implements IRecordRepository {
  *   );
  *
  * -- NOTE: このアプリは grade_before/grade_after をDBへ送信しない設計（add/updateで明示的にomitしている）。
- * -- 実際に保存されるのは grade_transition (1=rare→epic, 2=epic→unique, 3=unique→legendary) のみ。
+ * -- 実際に保存されるのは grade_transition (1=rare→epic, 2=epic→unique, 3=unique→legendary) と
+ * -- result ('success'|'fail') の組み合わせ。grade_after は result==='success' のときのみ意味を持ち、
+ * -- クライアント側で grade_transition から動的に導出する（DBには保存しない）。
  * ALTER TABLE cube_usage_events ADD CONSTRAINT valid_grade_transition
  *   CHECK (grade_transition IN (1, 2, 3));
+ *
+ * -- result 列: 失敗データも記録できるようにするための必須列（生存バイアス対策）
+ * -- 既存データ移行時は、旧スキーマの全レコードが「成功」だった前提で result='success' をデフォルト値とする。
+ * ALTER TABLE cube_usage_events ADD COLUMN result TEXT NOT NULL DEFAULT 'success';
+ * ALTER TABLE cube_usage_events ADD CONSTRAINT valid_result
+ *   CHECK (result IN ('success', 'fail'));
  *
  * ALTER TABLE cube_usage_events ADD CONSTRAINT valid_quantity
  *   CHECK (quantity_used >= 1 AND quantity_used <= 9999);
