@@ -312,37 +312,17 @@ main {
   flex-shrink: 0;
 }
 
-.grade-chip.grade-rare {
-  color: var(--grade-rare);
-}
+.grade-chip.grade-rare { color: var(--grade-rare); }
+.grade-chip.grade-rare .grade-chip-letter { background: var(--grade-rare); }
 
-.grade-chip.grade-rare .grade-chip-letter {
-  background: var(--grade-rare);
-}
+.grade-chip.grade-epic { color: var(--grade-epic); }
+.grade-chip.grade-epic .grade-chip-letter { background: var(--grade-epic); }
 
-.grade-chip.grade-epic {
-  color: var(--grade-epic);
-}
+.grade-chip.grade-unique { color: var(--grade-unique); }
+.grade-chip.grade-unique .grade-chip-letter { background: var(--grade-unique); }
 
-.grade-chip.grade-epic .grade-chip-letter {
-  background: var(--grade-epic);
-}
-
-.grade-chip.grade-unique {
-  color: var(--grade-unique);
-}
-
-.grade-chip.grade-unique .grade-chip-letter {
-  background: var(--grade-unique);
-}
-
-.grade-chip.grade-legendary {
-  color: var(--grade-legendary);
-}
-
-.grade-chip.grade-legendary .grade-chip-letter {
-  background: var(--grade-legendary);
-}
+.grade-chip.grade-legendary { color: var(--grade-legendary); }
+.grade-chip.grade-legendary .grade-chip-letter { background: var(--grade-legendary); }
 
 /* ===== Option A: キューブ種タブ + 等級遷移カード ===== */
 .cube-tabbar {
@@ -460,6 +440,11 @@ main {
   margin-bottom: 5px;
 }
 
+.cube-toplabel-with-ref {
+  margin-bottom: 24px;
+  /* 基準線ラベル(公式:2倍位置)がこの行の数値と重ならないよう余白を広げる */
+}
+
 .cube-toplabel b {
   color: var(--ink);
   font-size: 14px;
@@ -511,6 +496,16 @@ main {
   font-weight: 700;
   color: var(--ink);
   white-space: nowrap;
+}
+
+.cube-reflabel.edge-right {
+  /* 基準線が右端付近のときはラベルがカードからはみ出さないよう右揃えに切り替える */
+  transform: translateX(-100%);
+}
+
+.cube-reflabel.edge-left {
+  /* 基準線が左端付近のときは左揃えに切り替える */
+  transform: translateX(0);
 }
 
 .cube-verdict {
@@ -1454,11 +1449,9 @@ footer {
   0% {
     box-shadow: 0 14px 30px -12px rgba(226, 79, 0, 0.65), 0 0 0 0 rgba(226, 79, 0, 0.5);
   }
-
   70% {
     box-shadow: 0 14px 30px -12px rgba(226, 79, 0, 0.65), 0 0 0 14px rgba(226, 79, 0, 0);
   }
-
   100% {
     box-shadow: 0 14px 30px -12px rgba(226, 79, 0, 0.65), 0 0 0 0 rgba(226, 79, 0, 0);
   }

@@ -119,11 +119,16 @@ function TransitionCard({ stat }: { stat: TransitionStat }) {
             </div>
           </div>
           <div className="cube-row" style={{ marginTop: 16 }}>
-            <div className="cube-toplabel"><span>ミラクルタイム(実測)</span><b>{formatRate(miracleRate)}%</b></div>
+            <div className="cube-toplabel cube-toplabel-with-ref"><span>ミラクルタイム(実測)</span><b>{formatRate(miracleRate)}%</b></div>
             <div className="cube-track">
               <div className="cube-fill miracle" style={{ width: `${miracleWidth}%` }}></div>
               <div className={`cube-refline${isBelowFloor ? " warn" : ""}`} style={{ left: `${refLinePosition}%` }}></div>
-              <div className="cube-reflabel" style={{ left: `${refLinePosition}%` }}>公式:2倍位置</div>
+              <div
+                className={`cube-reflabel${refLinePosition > 85 ? " edge-right" : refLinePosition < 15 ? " edge-left" : ""}`}
+                style={{ left: `${refLinePosition}%` }}
+              >
+                公式:2倍位置
+              </div>
             </div>
           </div>
 
