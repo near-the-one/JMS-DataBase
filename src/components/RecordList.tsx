@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import type { ManualEntryRecord, PotentialType, ServerName } from "@/types";
-import { POTENTIAL_LABELS, CUBE_LABELS, GRADE_LABELS } from "@/types";
+import { POTENTIAL_LABELS, CUBE_LABELS, GRADE_LABELS, GRADE_ORDER } from "@/types";
 import { useFilters, FilterValues } from "@/hooks/useFilters";
 
 interface RecordListProps {
@@ -48,13 +48,16 @@ export function RecordList({ records, onEdit, onDelete }: RecordListProps) {
   const { filters, applyFilters, setAll } = useFilters();
 
   const computeTransition = (rec: ManualEntryRecord): number | string => {
-    if (rec.grade_before === "rare" && rec.grade_after === "epic") return 1;
-    if (rec.grade_before === "epic" && rec.grade_after === "unique") return 2;
-    if (rec.grade_before === "unique" && rec.grade_after === "legendary") return 3;
+    // grade_transition は grade_before だけで決まる（success/fail どちらでも同じ扱い）
+    const idx = GRADE_ORDER.indexOf(rec.grade_before);
+    if (idx >= 0 && idx < GRADE_ORDER.length - 1) return idx + 1;
     return ""; // no valid transition
   };
 
   const computeTransitionLabel = (rec: ManualEntryRecord): string => {
+    if (rec.result === "fail" || !rec.grade_after) {
+      return `${GRADE_LABELS[rec.grade_before]} → （失敗）`;
+    }
     return `${GRADE_LABELS[rec.grade_before]} → ${GRADE_LABELS[rec.grade_after]}`;
   };
 
@@ -202,6 +205,7 @@ export function RecordList({ records, onEdit, onDelete }: RecordListProps) {
               {header("キューブ種類", "cube_type")}
               {header("部位", "part")}
               {header("等級遷移", "grade_transition")}
+              <th>結果</th>
               {header("使用個数", "quantity_used")}
               {header("登録日時", "timestamp")}
               <th>操作</th>
@@ -225,6 +229,11 @@ export function RecordList({ records, onEdit, onDelete }: RecordListProps) {
                 </td>
                 <td>{record.part ?? ""}</td>
                 <td>{computeTransitionLabel(record)}</td>
+                <td>
+                  <span className={`badge ${record.result === "success" ? "type-pot" : ""}`}>
+                    {record.result === "success" ? "✅ 成功" : "❌ 失敗"}
+                  </span>
+                </td>
                 <td className="qty">{record.quantity_used}</td>
                 <td>{new Date(record.timestamp).toLocaleString("ja-JP", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" })}</td>
                 <td className="row-actions">
